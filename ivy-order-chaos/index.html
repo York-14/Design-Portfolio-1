@@ -36,9 +36,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; t
 .phase .en { font: 300 clamp(10px, 1.15vmin, 14px)/1 "IBM Plex Mono", monospace; letter-spacing: 0.42em; color: var(--muted); }
 .cycle { margin-top: 0.7em; font: 300 clamp(9px, 1vmin, 12px)/1.4 "IBM Plex Mono", monospace; letter-spacing: 0.2em; color: var(--muted); }
 
-.title { font-size: clamp(26px, 4.6vmin, 64px); font-weight: 300; line-height: 1; letter-spacing: 0.04em; }
-.title em { font-style: italic; color: var(--accent); }
-.sub { margin-top: 0.45em; font: 300 clamp(9px, 1.1vmin, 13px)/1.5 "IBM Plex Mono", monospace; letter-spacing: 0.32em; color: var(--muted); text-transform: uppercase; }
+.title { font-size: clamp(20px, 3.1vmin, 42px); font-weight: 300; line-height: 1.15; letter-spacing: 0.02em; text-wrap: balance; }
 .formula { margin-top: 0.9em; font-style: italic; font-weight: 300; font-size: clamp(12px, 1.7vmin, 21px); color: var(--muted); white-space: nowrap; }
 .metrics { margin-top: 0.6em; font: 300 clamp(9px, 1vmin, 12px)/1.6 "IBM Plex Mono", monospace; letter-spacing: 0.12em; color: var(--muted); white-space: pre; }
 
@@ -78,8 +76,7 @@ body.idle .tr .btn { opacity: 0; }
     <div class="cycle" id="cycle">SEEKING …</div>
   </div>
   <div class="corner bl">
-    <div class="title">Ivy <em>Mandala</em></div>
-    <div class="sub">Order × Chaos — <span id="sym">…</span></div>
+    <div class="title">Beauty Between Order and Chaos</div>
     <div class="formula">z<sub>t+1</sub> = (λ + α|z|² + β Re(z<sup>n</sup>) + iω) z + γ z̄<sup>n−1</sup></div>
     <div class="metrics" id="metrics"></div>
   </div>
@@ -1038,10 +1035,7 @@ const hud = $('hud');
 let hudOn = HUD_DEFAULT;
 hud.classList.toggle('off', !hudOn);
 const PHASES = [[6, '萌芽', 'SPROUT'], [28, '成長', 'GROWTH'], [45, '開花', 'BLOOM · ORDER'], [60, '混沌', 'CHAOS'], [1e9, '還元', 'RETURN']];
-const SUBS = '₀₁₂₃₄₅₆₇₈₉';
-const sub = n => String(n).split('').map(d => SUBS[+d]).join('');
 function updateHudStatic(g) {
-  $('sym').textContent = (g.mirror ? 'D' : 'C') + sub(g.n) + (g.mirror ? ' dihedral symmetry' : ' cyclic symmetry');
   $('cycle').textContent = `№ ${String(state.cycle).padStart(3, '0')} · ${(g.name || g.label || 'DISCOVERED').toUpperCase()} · ${g.theme.name} · SEED ${SEED_STR}`;
 }
 $('cycle').textContent = `SEEKING … · ${MODE === 'chaos' ? 'CHAOS-BORN' : 'WALK'} · SEED ${SEED_STR}`;
