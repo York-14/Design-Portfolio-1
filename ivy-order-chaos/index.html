@@ -895,8 +895,27 @@ const Dust = (() => {
 // 7. 音（任意）：拍に同期した撥弦・心拍・葉擦れとパッド。秩序は五音音階、混沌は不協和へ
 // =====================================================================================
 const Sound = (() => {
-  let ac = null, master, verbIn, pad, padF, on = false, noise, oscs = [];
+  let ac = null, master, verbIn, pad, padF, on = false, noise, oscs = [], keeper = null;
   const ROOT = 146.83;   // D3
+  // iPhone は消音スイッチがオンだと Web Audio が無音になる。
+  // 再生カテゴリを「playback」にして、消音スイッチに関係なく鳴らす（新しい Safari は audioSession、古いものは無音の <audio> を流して切り替える）
+  function silentWavUrl() {
+    const sr = 8000, n = sr / 2, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+  function unlockPlayback() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    try {
+      if (!keeper) { keeper = document.createElement('audio'); keeper.src = silentWavUrl(); keeper.loop = true; keeper.setAttribute('playsinline', ''); }
+      const pr = keeper.play(); if (pr && pr.catch) pr.catch(() => {});
+    } catch (e) {}
+  }
+  // 画面の切り替えなどで止められた音声を、次の操作で再開する
+  function revive() { if (on && ac && ac.state !== 'running') { ac.resume().catch(() => {}); unlockPlayback(); } }
   function impulse(sec) {
     const len = ac.sampleRate * sec, b = ac.createBuffer(2, len, ac.sampleRate);
     for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
@@ -905,7 +924,7 @@ const Sound = (() => {
   function init() {
     ac = new (window.AudioContext || window.webkitAudioContext)();
     master = ac.createGain(); master.gain.value = 0;
-    const comp = ac.createDynamicsCompressor(); comp.threshold.value = -18;
+    const comp = ac.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 8; comp.attack.value = 0.003;
     master.connect(comp); comp.connect(ac.destination);
     const verb = ac.createConvolver(); verb.buffer = impulse(3.4);
     const wet = ac.createGain(); wet.gain.value = 0.5; verbIn = ac.createGain();
@@ -913,19 +932,20 @@ const Sound = (() => {
     const nb = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), nd = nb.getChannelData(0);
     for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
     noise = nb;
-    padF = ac.createBiquadFilter(); padF.type = 'lowpass'; padF.frequency.value = 420; padF.Q.value = 0.8;
-    pad = ac.createGain(); pad.gain.value = 0.035;
+    padF = ac.createBiquadFilter(); padF.type = 'lowpass'; padF.frequency.value = 900; padF.Q.value = 0.8;
+    pad = ac.createGain(); pad.gain.value = 0.05;
     padF.connect(pad); pad.connect(master); pad.connect(verbIn);
-    for (const semi of [-12, -5, 0, 3, 7]) {
+    for (const semi of [0, 7, 12, 15, 19]) {     // スマホのスピーカーでも聞こえる帯域（150〜450 Hz）
       const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = ROOT * 2 ** (semi / 12); o.detune.value = rnd(-7, 7);
       o.connect(padF); o.start(); oscs.push([o, semi]);
     }
   }
   function toggle() {
     if (!ac) init();
-    if (ac.state === 'suspended') ac.resume();
     on = !on;
-    master.gain.setTargetAtTime(on ? 0.75 : 0, ac.currentTime, 0.5);
+    if (on) { unlockPlayback(); if (ac.state !== 'running') ac.resume().catch(() => {}); }
+    else if (keeper) keeper.pause();
+    master.gain.setTargetAtTime(on ? 0.8 : 0, ac.currentTime, 0.3);
     return on;
   }
   function pluck(f, t, vel, bright) {
@@ -941,6 +961,11 @@ const Sound = (() => {
     o.type = 'sine'; o.frequency.setValueAtTime(88, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.35);
     gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(vel, t + 0.01); gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
     o.connect(gn); gn.connect(master); o.start(t); o.stop(t + 0.65);
+    // 小さなスピーカーでも鼓動が分かるよう、倍音の「トン」を重ねる
+    const o2 = ac.createOscillator(), g2 = ac.createGain();
+    o2.type = 'triangle'; o2.frequency.setValueAtTime(240, t); o2.frequency.exponentialRampToValueAtTime(110, t + 0.12);
+    g2.gain.setValueAtTime(0, t); g2.gain.linearRampToValueAtTime(vel * 0.5, t + 0.005); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    o2.connect(g2); g2.connect(master); o2.start(t); o2.stop(t + 0.2);
   }
   function rustle(t, vel) {
     const s = ac.createBufferSource(), f = ac.createBiquadFilter(), gn = ac.createGain();
@@ -957,27 +982,27 @@ const Sound = (() => {
     if (i % 4 === 0) thump(t, 0.55 - chaos * 0.15);
     else if (chaos > 0.4 && Math.random() < chaos * 0.6) thump(t, 0.25);
     const idx = (i * n) % PENTA.length;
-    pluck(ROOT * 2 ** (PENTA[idx] / 12), t, 0.16 * (1 - chaos * 0.4), 0.3 + chaos * 0.6);
-    if (bloom > 0.3) pluck(ROOT * 2 ** ((PENTA[(idx + 2) % PENTA.length] + 12) / 12), t + spb / 2, 0.07 * bloom, 0.8);
+    pluck(ROOT * 2 ** ((PENTA[idx] + 12) / 12), t, 0.3 * (1 - chaos * 0.4), 0.3 + chaos * 0.6);
+    if (bloom > 0.3) pluck(ROOT * 2 ** ((PENTA[(idx + 2) % PENTA.length] + 24) / 12), t + spb / 2, 0.13 * bloom, 0.8);
     if (chaos > 0.15) {
       const k = 1 + (Math.random() * 3 * chaos | 0);
       for (let j = 0; j < k; j++) {
         const semi = Math.random() < chaos * 0.6 ? OUT[Math.random() * OUT.length | 0] : PENTA[Math.random() * PENTA.length | 0];
-        pluck(ROOT * 2 ** ((semi + 12 * (Math.random() < 0.5 ? 1 : 0)) / 12), t + Math.random() * spb, 0.07 * chaos, 0.9);
+        pluck(ROOT * 2 ** ((semi + 12 * (Math.random() < 0.5 ? 2 : 1)) / 12), t + Math.random() * spb, 0.13 * chaos, 0.9);
       }
       if (Math.random() < chaos) rustle(t + Math.random() * spb * 0.5, 0.05 + 0.07 * chaos);
     }
   }
   function update(chaos) {
     if (!on) return;
-    padF.frequency.setTargetAtTime(380 + chaos * 2400, ac.currentTime, 0.6);
+    padF.frequency.setTargetAtTime(900 + chaos * 2400, ac.currentTime, 0.6);
     for (const [o] of oscs) o.detune.setTargetAtTime(rnd(-7, 7) * (1 + chaos * 5), ac.currentTime, 1.5);
   }
   function setRoot(semi) {
     if (!ac) return;
     for (const [o, s] of oscs) o.frequency.setTargetAtTime(ROOT * 2 ** ((s + semi) / 12), ac.currentTime, 2.5);
   }
-  return { toggle, beat, update, setRoot, get on() { return on; } };
+  return { toggle, beat, update, setRoot, revive, get on() { return on; } };
 })();
 
 // =====================================================================================
@@ -1075,6 +1100,7 @@ cv.addEventListener('pointermove', e => {
   wake();
 });
 cv.addEventListener('pointerdown', e => {
+  Sound.revive();
   pointer.x = e.clientX * DPR; pointer.y = e.clientY * DPR; pointer.active = true; pointer.last = performance.now();
   shocks.push({ x: pointer.x, y: pointer.y, r: 0, w: 70 * DPR, amp: 34 * DPR, t0: state.time });
   if (shocks.length > 4) shocks.shift();
@@ -1084,6 +1110,7 @@ cv.addEventListener('pointerdown', e => {
   burstPollen(pointer.x, pointer.y, g ? g.theme : THEMES[0], 18);
   wake();
 });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) Sound.revive(); });
 cv.addEventListener('pointerleave', () => { pointer.active = false; });
 cv.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') pointer.active = false; });
 cv.addEventListener('dblclick', () => toggleFullscreen());
