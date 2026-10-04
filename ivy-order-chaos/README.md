@@ -2,7 +2,7 @@
 
 **🌐 デモ: https://york-14.github.io/Design-Portfolio-1/ivy-order-chaos/**
 
-蔦と葉で描く対称カオス写像。秩序（Order）と混沌（Chaos）が 80–120 BPM の鼓動で呼吸し続ける、店舗サイネージ向けのジェネラティブ作品です。
+蔦と葉で描く対称カオス写像。秩序（Order）と混沌（Chaos）が 80–120 BPM の鼓動で呼吸し続けるジェネラティブ作品です。
 
 ベース: [Generative Flower — Order × Chaos](https://york-14.github.io/Generative-flower-Order-Chaos/) の数理モデル（Field & Golubitsky の symmetric icons と `Beauty = Order × Complexity × Contrast`）。
 
