@@ -1,0 +1,1151 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ivy Mandala</title>
+<meta name="description" content="対称カオス写像（Field–Golubitsky）を蔦と葉で描く。秩序と混沌が 80–120 BPM の鼓動で呼吸し続けるジェネラティブ・サイネージ。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,300;1,400&family=IBM+Plex+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #020605; --ink: #ece8d8; --muted: rgba(236, 232, 216, 0.52);
+  --faint: rgba(236, 232, 216, 0.16); --accent: #d9bd78; color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #020605; --ink: #ece8d8; --muted: rgba(236, 232, 216, 0.52); --accent: #d9bd78; }
+}
+:root[data-theme="dark"] { --bg: #020605; --ink: #ece8d8; --muted: rgba(236, 232, 216, 0.52); --accent: #d9bd78; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); }
+body { font-family: "Cormorant Garamond", "Hiragino Mincho ProN", "Yu Mincho", serif; -webkit-font-smoothing: antialiased; }
+body.idle, body.idle * { cursor: none !important; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+.hud { position: fixed; inset: 0; pointer-events: none; transition: opacity 1.2s ease; }
+.hud.off { opacity: 0; }
+.corner { position: absolute; }
+.tl { top: max(16px, 3.2vmin); left: max(16px, 3.6vmin); }
+.bl { bottom: max(16px, 3.2vmin); left: max(16px, 3.6vmin); max-width: min(60vw, 560px); }
+.br { bottom: max(16px, 3.2vmin); right: max(16px, 3.6vmin); text-align: right; }
+.tr { top: max(16px, 3.2vmin); right: max(16px, 3.6vmin); pointer-events: auto; }
+
+.phase { display: flex; align-items: baseline; gap: 0.7em; }
+.phase .ja { font-size: clamp(22px, 3.4vmin, 44px); font-weight: 300; letter-spacing: 0.18em; transition: opacity .8s; }
+.phase .en { font: 300 clamp(10px, 1.15vmin, 14px)/1 "IBM Plex Mono", monospace; letter-spacing: 0.42em; color: var(--muted); }
+.cycle { margin-top: 0.7em; font: 300 clamp(9px, 1vmin, 12px)/1.4 "IBM Plex Mono", monospace; letter-spacing: 0.2em; color: var(--muted); }
+
+.title { font-size: clamp(26px, 4.6vmin, 64px); font-weight: 300; line-height: 1; letter-spacing: 0.04em; }
+.title em { font-style: italic; color: var(--accent); }
+.sub { margin-top: 0.45em; font: 300 clamp(9px, 1.1vmin, 13px)/1.5 "IBM Plex Mono", monospace; letter-spacing: 0.32em; color: var(--muted); text-transform: uppercase; }
+.formula { margin-top: 0.9em; font-style: italic; font-weight: 300; font-size: clamp(12px, 1.7vmin, 21px); color: var(--muted); white-space: nowrap; }
+.metrics { margin-top: 0.6em; font: 300 clamp(9px, 1vmin, 12px)/1.6 "IBM Plex Mono", monospace; letter-spacing: 0.12em; color: var(--muted); white-space: pre; }
+
+.tempo { display: flex; align-items: baseline; justify-content: flex-end; gap: 0.35em; }
+.tempo b { font-weight: 300; font-size: clamp(40px, 7.2vmin, 104px); line-height: 0.9; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.tempo small { font: 300 clamp(9px, 1.1vmin, 13px)/1 "IBM Plex Mono", monospace; letter-spacing: 0.35em; color: var(--muted); }
+.dot { display: inline-block; width: clamp(6px, 0.9vmin, 11px); height: clamp(6px, 0.9vmin, 11px); border-radius: 50%; background: var(--accent); margin-left: 0.5em; transform: scale(var(--p, 0.4)); opacity: calc(0.25 + var(--p, 0.4) * 0.75); }
+.gauge { margin-top: 1.1em; display: flex; align-items: center; gap: 0.9em; justify-content: flex-end;
+  font: 300 clamp(8px, 0.95vmin, 11px)/1 "IBM Plex Mono", monospace; letter-spacing: 0.32em; color: var(--muted); }
+.gauge .track { position: relative; width: clamp(110px, 20vmin, 280px); height: 1px; background: var(--faint); }
+.gauge .fill { position: absolute; left: 0; top: 0; height: 1px; background: linear-gradient(90deg, rgba(160, 210, 170, .7), var(--accent), #e2735a); width: 0; }
+.gauge .mark { position: absolute; top: -4px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; border: 1px solid var(--ink); background: var(--bg); left: 0; }
+
+.btn { pointer-events: auto; background: none; border: 1px solid var(--faint); color: var(--muted); border-radius: 999px;
+  font: 300 11px/1 "IBM Plex Mono", monospace; letter-spacing: 0.25em; padding: 9px 14px 9px 16px; cursor: pointer; transition: color .3s, border-color .3s, opacity 1s; }
+.btn:hover, .btn.on { color: var(--ink); border-color: var(--muted); }
+.hint { position: fixed; left: 50%; top: max(16px, 3.2vmin); transform: translateX(-50%); pointer-events: none;
+  font: 300 11px/1.6 "IBM Plex Mono", monospace; letter-spacing: 0.22em; color: var(--muted); text-align: center; transition: opacity 1.5s; white-space: nowrap; }
+.hint.gone { opacity: 0; }
+body.idle .tr .btn { opacity: 0; }
+
+@media (max-width: 640px) {
+  .formula { display: none; }
+  .bl { max-width: 58vw; }
+  .hint { display: none; }
+  .metrics { display: none; }
+}
+@media (max-height: 420px) { .formula, .metrics, .cycle { display: none; } }
+</style>
+</head>
+<body>
+<canvas id="cv" aria-label="蔦と葉が対称カオス写像に沿って伸び、秩序と混沌を繰り返すジェネラティブアート"></canvas>
+
+<div class="hud" id="hud">
+  <div class="corner tl">
+    <div class="phase"><span class="ja" id="phaseJa">萌芽</span><span class="en" id="phaseEn">SPROUT</span></div>
+    <div class="cycle" id="cycle">№ 001 · EMPEROR'S CLOAK</div>
+  </div>
+  <div class="corner bl">
+    <div class="title">Ivy <em>Mandala</em></div>
+    <div class="sub">Order × Chaos — <span id="sym">D₇</span></div>
+    <div class="formula">z<sub>t+1</sub> = (λ + α|z|² + β Re(z<sup>n</sup>) + iω) z + γ z̄<sup>n−1</sup></div>
+    <div class="metrics" id="metrics"></div>
+  </div>
+  <div class="corner br">
+    <div class="tempo"><b id="bpm">84</b><small>BPM</small><span class="dot" id="dot"></span></div>
+    <div class="gauge"><span>ORDER</span><span class="track"><span class="fill" id="fill"></span><span class="mark" id="mark"></span></span><span>CHAOS</span></div>
+  </div>
+  <div class="corner tr"><button class="btn" id="snd" type="button" aria-pressed="false">SOUND OFF</button></div>
+</div>
+<div class="hint" id="hint">TAP — RIPPLE &nbsp;·&nbsp; DRAG — REACH &nbsp;·&nbsp; S SOUND &nbsp;·&nbsp; F FULLSCREEN &nbsp;·&nbsp; H HUD</div>
+
+<script>
+(() => {
+'use strict';
+
+// =====================================================================================
+// 0. 基本ユーティリティ
+// =====================================================================================
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const smooth = (e0, e1, x) => { const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); };
+const rnd = (lo, hi) => lo + Math.random() * (hi - lo);
+const fract = x => x - Math.floor(x);
+const easeOutBack = t => { t = clamp(t, 0, 1); const c = 1.6; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
+const angDiff = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
+const $ = id => document.getElementById(id);
+
+const URLP = new URLSearchParams(location.search);
+const HUD_DEFAULT = URLP.get('hud') !== '0';
+const LOW = URLP.get('quality') === 'low';
+const SPEED = clamp(parseFloat(URLP.get('speed')) || 1, 0.1, 16);   // プレビュー用の時間倍率
+
+// =====================================================================================
+// 1. 数理モデル：Field & Golubitsky の対称カオス写像（元コードを踏襲）
+//    z_{t+1} = (λ + α|z|² + β Re(zⁿ) + iω) z + γ z̄^{n−1}
+// =====================================================================================
+let NX = 0, NY = 0;
+function step(q, x, y) {
+  const zz = x * x + y * y;
+  let zr = x, zi = y;
+  for (let i = 1; i < q.n - 1; i++) { const t = zr * x - zi * y; zi = zr * y + zi * x; zr = t; }
+  const ren = zr * x - zi * y;
+  const p = q.lam + q.alpha * zz + q.beta * ren;
+  NX = p * x - q.omega * y + q.gamma * zr;
+  NY = p * y + q.omega * x - q.gamma * zi;
+}
+function probe(q, N = 20000) {
+  let x = 0.01, y = 0.003, R = 0;
+  for (let i = 0; i < N; i++) {
+    step(q, x, y); x = NX; y = NY;
+    if (!(Math.abs(x) + Math.abs(y) < 1e4)) return null;
+    if (i > 1000) { const r = x * x + y * y; if (r > R) R = r; }
+  }
+  R = Math.sqrt(R);
+  return R > 1e-6 ? { R, x, y } : null;
+}
+// ボックス次元・余白・もや・斑点・角度コントラスト・最大 Lyapunov 指数
+function analyze(q) {
+  const pr = probe(q);
+  if (!pr) return null;
+  const G = 128, h = new Float32Array(G * G);
+  let x = pr.x, y = pr.y, max = 1;
+  for (let i = 0; i < 80000; i++) {
+    step(q, x, y); x = NX; y = NY;
+    const gx = ((x / pr.R) * 0.5 + 0.5) * (G - 1) | 0, gy = ((y / pr.R) * 0.5 + 0.5) * (G - 1) | 0;
+    if (gx >= 0 && gx < G && gy >= 0 && gy < G) { const v = ++h[gy * G + gx]; if (v > max) max = v; }
+  }
+  const occ32 = new Uint8Array(32 * 32);
+  let c128 = 0, c32 = 0, occDisk = 0, disk = 0, haze = 0, speck = 0;
+  const ang = new Float64Array(72), lm = Math.log1p(max), c = (G - 1) / 2;
+  for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) {
+    const k = j * G + i, dx = i - c, dy = j - c, r2 = dx * dx + dy * dy, inD = r2 <= (G / 2) ** 2;
+    if (inD) disk++;
+    if (!h[k]) continue;
+    c128++; if (inD) occDisk++;
+    const o = (j >> 2) * 32 + (i >> 2); if (!occ32[o]) { occ32[o] = 1; c32++; }
+    if (Math.log1p(h[k]) / lm < 0.4) haze++;
+    const nb = (i > 0 && h[k - 1] > 0) + (i < G - 1 && h[k + 1] > 0) + (j > 0 && h[k - G] > 0) + (j < G - 1 && h[k + G] > 0);
+    if (nb <= 2) speck++;
+    if (r2 > (0.3 * G / 2) ** 2) ang[Math.floor((Math.atan2(dy, dx) / TAU + 0.5) * 72) % 72] += h[k];
+  }
+  const am = ang.reduce((a, b) => a + b, 0) / 72;
+  const actr = am > 0 ? Math.sqrt(ang.reduce((a, b) => a + (b - am) ** 2, 0) / 72) / am : 0;
+  const d0 = 1e-8; let x2 = x + d0, y2 = y, lsum = 0;
+  for (let i = 0; i < 3000; i++) {
+    step(q, x, y); const ax = NX, ay = NY;
+    step(q, x2, y2);
+    const dx = NX - ax, dy = NY - ay, dd = Math.hypot(dx, dy) || 1e-300;
+    lsum += Math.log(dd / d0);
+    x = ax; y = ay; x2 = ax + dx * d0 / dd; y2 = ay + dy * d0 / dd;
+  }
+  return { q, R: pr.R, D: Math.log2(c128 / Math.max(c32, 1)) / 2, fill: occDisk / disk,
+           haze: haze / c128, speckle: speck / c128, actr, lyap: lsum / 3000, mirror: q.omega === 0 ? 1 : 0 };
+}
+const isGood = a => a && a.D > 1.3 && a.D < 1.95 && a.fill > 0.08 && a.fill < 0.8 && a.lyap > 0.01;
+const logBell = (x, mu, s) => -0.5 * ((x - mu) / s) ** 2;
+const sig = (x, x0, s) => 1 / (1 + Math.exp(-(x - x0) / s));
+// Beauty = Order × Complexity × Contrast（shape_map.py のブラウザ近似）
+function beautyOf(a) {
+  const neg = 1 - a.fill, ll = Math.log(Math.max(a.lyap, 1e-4));
+  const logO = logBell(Math.log(a.q.n), Math.log(6), 0.55) + Math.log(0.65 + 0.35 * a.mirror)
+             + Math.log(0.3 + 0.7 * sig(a.actr, 0.5, 0.15));
+  const logC = 0.5 * (logBell(a.D, 1.72, 0.11) + logBell(ll, Math.log(0.35), 0.7));
+  const logK = (logBell(neg, 0.45, 0.22) + Math.log(1 - 0.6 * sig(a.haze, 0.5, 0.1))
+              + Math.log(1 - 0.7 * sig(a.speckle, 0.2, 0.04))) / 3;
+  return { O: Math.exp(logO), C: Math.exp(logC), K: Math.exp(logK), B: Math.exp(logO + logC + logK) };
+}
+const lerpQ = (a, b, t) => ({ n: a.n, lam: lerp(a.lam, b.lam, t), alpha: lerp(a.alpha, b.alpha, t),
+  beta: lerp(a.beta, b.beta, t), gamma: lerp(a.gamma, b.gamma, t), omega: lerp(a.omega, b.omega, t) });
+function randomParams() {
+  return { n: 3 + Math.floor(Math.random() * 8), lam: rnd(-2.8, 2.8), alpha: rnd(-5, 5), beta: rnd(-1.5, 1.5),
+           gamma: rnd(-1.2, 1.2), omega: Math.random() < 0.5 ? 0 : rnd(-0.3, 0.3) };
+}
+const PRESETS = [
+  ["Emperor's Cloak", { lam: -2.08, alpha: 1.0, beta: -0.1, gamma: 0.167, omega: 0, n: 7 }],
+  ["Starfish", { lam: -2.34, alpha: 2.0, beta: 0.2, gamma: 0.1, omega: 0, n: 5 }],
+  ["Sand Dollar", { lam: -2.7, alpha: 5.0, beta: 1.5, gamma: 1.0, omega: 0, n: 6 }],
+  ["Pentagon", { lam: -1.806, alpha: 1.806, beta: 0, gamma: 1.0, omega: 0, n: 5 }],
+  ["Fish", { lam: -2.5, alpha: 5.0, beta: -1.9, gamma: 1.0, omega: 0.188, n: 5 }],
+  ["Clam Triple", { lam: 1.56, alpha: -1.0, beta: 0.1, gamma: -0.82, omega: 0.12, n: 3 }],
+];
+
+// 蔦が辿る「地形」：アトラクタ密度を log 圧縮してぼかしたスカラー場（半径 1 に正規化）
+const FG = 128, FH = 1.18;
+function buildField(q, pr) {
+  const f = new Float32Array(FG * FG);
+  let x = pr.x, y = pr.y, max = 1;
+  const sc = (FG - 1) / (2 * FH * pr.R);
+  for (let i = 0; i < 160000; i++) {
+    step(q, x, y); x = NX; y = NY;
+    const gx = ((x * sc) + (FG - 1) / 2) | 0, gy = ((y * sc) + (FG - 1) / 2) | 0;
+    if (gx >= 0 && gx < FG && gy >= 0 && gy < FG) { const v = ++f[gy * FG + gx]; if (v > max) max = v; }
+  }
+  const lm = Math.log1p(max);
+  for (let i = 0; i < f.length; i++) f[i] = Math.log1p(f[i]) / lm;
+  const tmp = new Float32Array(f.length);
+  for (let pass = 0; pass < 3; pass++) {
+    for (let j = 0; j < FG; j++) for (let i = 0; i < FG; i++) {
+      let s = 0, c = 0;
+      for (let d = -2; d <= 2; d++) { const ii = i + d; if (ii >= 0 && ii < FG) { s += f[j * FG + ii]; c++; } }
+      tmp[j * FG + i] = s / c;
+    }
+    for (let j = 0; j < FG; j++) for (let i = 0; i < FG; i++) {
+      let s = 0, c = 0;
+      for (let d = -2; d <= 2; d++) { const jj = j + d; if (jj >= 0 && jj < FG) { s += tmp[jj * FG + i]; c++; } }
+      f[j * FG + i] = s / c;
+    }
+  }
+  let m = 0; for (let i = 0; i < f.length; i++) if (f[i] > m) m = f[i];
+  if (m > 0) for (let i = 0; i < f.length; i++) f[i] /= m;
+  return f;
+}
+
+// 「秩序の花」から「混沌の相棒」を探す：ω を立てて鏡映を壊し、Lyapunov 指数が大きい有界な近傍
+function* specJob(q, name) {
+  const pr = probe(q); if (!pr) return null;
+  const a = analyze(q); yield;
+  if (!a) return null;
+  const field = buildField(q, pr); yield;
+  let best = null, bestScore = -Infinity;
+  for (let t = 0; t < 22; t++) {
+    const s = Math.random() < 0.5 ? -1 : 1;
+    const c = { n: q.n, omega: q.omega + s * rnd(0.07, 0.22), lam: q.lam + rnd(-0.22, 0.22),
+                gamma: q.gamma * rnd(0.75, 1.25) + rnd(-0.12, 0.12), beta: q.beta + rnd(-0.25, 0.25), alpha: q.alpha * rnd(0.9, 1.12) };
+    const ac = analyze(c); yield;
+    if (!ac || ac.fill < 0.05) continue;
+    let ok = true;
+    for (const f of [0.25, 0.5, 0.75]) if (!probe(lerpQ(q, c, f), 6000)) { ok = false; break; }
+    if (!ok) continue;
+    const score = ac.lyap - 0.6 * Math.abs(ac.fill - 0.4) + (ac.D > 1.45 ? 0.15 : 0);
+    if (score > bestScore) { bestScore = score; best = { q: c, R: ac.R, a: ac }; }
+  }
+  if (!best) { const c = { ...q, omega: q.omega + 0.1 }; const p2 = probe(c); best = { q: c, R: p2 ? p2.R : pr.R, a: null }; }
+  return { q, name, R: pr.R, x0: pr.x, y0: pr.y, a, beauty: beautyOf(a), field, qc: best.q, Rc: best.R, ac: best.a };
+}
+const runSync = gen => { let r; do r = gen.next(); while (!r.done); return r.value; };
+function* discoverJob() {
+  const cands = []; let tries = 0;
+  while (cands.length < 6 && tries < 5000) {
+    const a = analyze(randomParams()); tries++;
+    if (isGood(a) && a.fill > 0.12 && a.fill < 0.7) { a.B = beautyOf(a).B; cands.push(a); }
+    if (tries % 3 === 0) yield;
+  }
+  if (!cands.length) return null;
+  const best = cands.reduce((b, c) => c.B > b.B ? c : b);
+  return yield* specJob(best.q, null);
+}
+
+// =====================================================================================
+// 2. 色彩・テーマ・スプライト
+// =====================================================================================
+const THEMES = [
+  { name: 'JADE', bg0: [14, 32, 25], bg1: [2, 6, 5],
+    leaf: [[152, 46, 19], [140, 48, 27], [114, 50, 35], [96, 58, 44], [60, 64, 42], [38, 78, 46], [18, 70, 40], [352, 62, 38]],
+    stem: [52, 82, 44], stemHi: [150, 190, 112], wither: [92, 68, 42],
+    dust: [[0, 0, 0, 0], [6, 52, 52, 70], [40, 150, 122, 160], [226, 196, 116, 225], [255, 250, 226, 255]],
+    bloom: [[0, 0, 0, 0], [130, 60, 92, 110], [244, 156, 172, 205], [255, 226, 186, 245], [255, 255, 242, 255]],
+    glow: [255, 214, 140], ring: [226, 200, 132] },
+  { name: 'MOON', bg0: [14, 22, 38], bg1: [2, 3, 9],
+    leaf: [[168, 40, 19], [176, 36, 27], [152, 34, 35], [140, 40, 46], [196, 34, 46], [256, 30, 52], [296, 36, 46], [334, 50, 44]],
+    stem: [48, 72, 80], stemHi: [150, 186, 200], wither: [82, 70, 92],
+    dust: [[0, 0, 0, 0], [26, 36, 84, 80], [86, 140, 196, 165], [206, 196, 246, 225], [252, 250, 255, 255]],
+    bloom: [[0, 0, 0, 0], [70, 60, 140, 110], [170, 150, 236, 200], [226, 214, 255, 240], [255, 255, 255, 255]],
+    glow: [196, 210, 255], ring: [180, 196, 240] },
+  { name: 'EMBER', bg0: [30, 20, 12], bg1: [5, 3, 2],
+    leaf: [[96, 40, 21], [84, 44, 28], [70, 48, 35], [58, 56, 44], [48, 70, 43], [30, 80, 46], [14, 72, 40], [350, 60, 36]],
+    stem: [78, 70, 40], stemHi: [196, 176, 110], wither: [104, 62, 38],
+    dust: [[0, 0, 0, 0], [70, 22, 18, 80], [190, 84, 52, 165], [250, 180, 104, 225], [255, 244, 214, 255]],
+    bloom: [[0, 0, 0, 0], [140, 40, 50, 110], [250, 120, 104, 205], [255, 204, 150, 245], [255, 252, 236, 255]],
+    glow: [255, 172, 120], ring: [240, 170, 120] },
+];
+const rgba = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+const hsl = (h, s, l, a = 1) => `hsla(${h},${clamp(s, 0, 100)}%,${clamp(l, 0, 100)}%,${a})`;
+function buildLUT(stops) {
+  const L = new Uint8ClampedArray(256 * 4);
+  for (let i = 0; i < 256; i++) {
+    const t = i / 255 * (stops.length - 1), j = Math.min(stops.length - 2, Math.floor(t)), f = t - j;
+    for (let k = 0; k < 4; k++) L[i * 4 + k] = stops[j][k] + f * (stops[j + 1][k] - stops[j][k]);
+  }
+  return L;
+}
+const mk = (w, h = w) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+
+// --- 葉の形：ヘデラ（セイヨウキヅタ）を極座標のローブ和で近似 ---
+//  shape 0 = 5 裂の若葉, shape 1 = 心形の成葉。葉柄の付け根を原点、葉の軸を +x とする
+function leafR(shape, ph) {
+  const lobe = (mu, s, a, e = 1.3) => a * Math.exp(-Math.pow(Math.abs(ph - mu) / s, e));
+  return shape === 0
+    ? 0.24 + lobe(0, 0.42, 0.78) + lobe(1.1, 0.36, 0.44) + lobe(-1.1, 0.36, 0.44) + lobe(2.05, 0.32, 0.2) + lobe(-2.05, 0.32, 0.2)
+    : 0.09 + lobe(0, 0.9, 0.92, 1.15) + lobe(1.3, 0.5, 0.24, 2) + lobe(-1.3, 0.5, 0.24, 2);
+}
+const SPR = 128, SPR_L = 76, SPR_OX = 30, SPR_OY = 64, SPR_AX = 7;   // スプライト内の葉のスケールと葉柄の付け根
+function makeLeafSprite(shape, tone, theme) {
+  const c = mk(SPR), g = c.getContext('2d');
+  const [h, s, l] = theme.leaf[tone];
+  const path = new Path2D();
+  for (let i = 0; i <= 180; i++) {
+    const ph = -Math.PI + i / 180 * TAU, r = leafR(shape, ph);
+    const x = SPR_OX + Math.cos(ph) * r * SPR_L, y = SPR_OY + Math.sin(ph) * r * SPR_L;
+    i ? path.lineTo(x, y) : path.moveTo(x, y);
+  }
+  path.closePath();
+  // 葉柄
+  g.strokeStyle = hsl(h + 10, s - 12, l - 4); g.lineWidth = 2.2; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(SPR_AX, SPR_OY); g.quadraticCurveTo((SPR_AX + SPR_OX) / 2, SPR_OY - 3, SPR_OX + 2, SPR_OY); g.stroke();
+  // 影付きの葉身
+  g.save();
+  g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 7; g.shadowOffsetX = 2; g.shadowOffsetY = 3;
+  const lg = g.createLinearGradient(SPR_OX - 0.25 * SPR_L, SPR_OY, SPR_OX + SPR_L, SPR_OY);
+  lg.addColorStop(0, hsl(h - 4, s - 4, l - 8)); lg.addColorStop(0.55, hsl(h + 3, s + 4, l + 1)); lg.addColorStop(1, hsl(h + 8, s, l + 7));
+  g.fillStyle = lg; g.fill(path);
+  g.restore();
+  g.save(); g.clip(path);
+  // 片側をわずかに暗く（主脈で折れた立体感）
+  g.fillStyle = 'rgba(0,0,0,0.13)'; g.fillRect(0, SPR_OY, SPR, SPR);
+  // 光沢
+  const rg = g.createRadialGradient(SPR_OX + 0.38 * SPR_L, SPR_OY - 0.24 * SPR_L, 2, SPR_OX + 0.38 * SPR_L, SPR_OY - 0.24 * SPR_L, 0.8 * SPR_L);
+  rg.addColorStop(0, 'rgba(255,255,236,0.26)'); rg.addColorStop(1, 'rgba(255,255,236,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, SPR, SPR);
+  // 葉脈
+  g.strokeStyle = hsl(h - 14, s - 22, l + 24, 0.55); g.lineCap = 'round';
+  const veins = shape === 0 ? [0, 1.12, -1.12, 2.08, -2.08] : [0, 0.7, -0.7, 1.45, -1.45];
+  for (const a of veins) {
+    const r = leafR(shape, a) * (a === 0 ? 0.88 : 0.78) * SPR_L;
+    g.lineWidth = a === 0 ? 1.7 : 1.0;
+    const ex = SPR_OX + Math.cos(a) * r, ey = SPR_OY + Math.sin(a) * r;
+    g.beginPath(); g.moveTo(SPR_OX, SPR_OY);
+    g.quadraticCurveTo(SPR_OX + Math.cos(a * 0.8) * r * 0.5, SPR_OY + Math.sin(a * 0.8) * r * 0.5, ex, ey);
+    g.stroke();
+  }
+  g.restore();
+  g.strokeStyle = hsl(h, s, l + 18, 0.32); g.lineWidth = 1; g.stroke(path);
+  return c;
+}
+function makeGlow(col, size = 64) {
+  const c = mk(size), g = c.getContext('2d'), r = size / 2;
+  const gr = g.createRadialGradient(r, r, 0, r, r, r);
+  gr.addColorStop(0, rgba(col, 1)); gr.addColorStop(0.18, rgba(col, 0.55)); gr.addColorStop(0.5, rgba(col, 0.12)); gr.addColorStop(1, rgba(col, 0));
+  g.fillStyle = gr; g.fillRect(0, 0, size, size);
+  return c;
+}
+// 花：その回の写像そのものを小さなアトラクタとして描く（全ての花が数式の縮図）
+function makeIcon(spec, stops) {
+  const P = 168, c = mk(P), g = c.getContext('2d');
+  const h = new Float32Array(P * P), q = spec.q;
+  let x = spec.x0, y = spec.y0, max = 1;
+  const sc = (P / 2 - 3) / (spec.R * 1.02);
+  for (let i = 0; i < 260000; i++) {
+    step(q, x, y); x = NX; y = NY;
+    const px = (P / 2 + x * sc) | 0, py = (P / 2 + y * sc) | 0;
+    if (px >= 0 && px < P && py >= 0 && py < P) { const v = ++h[py * P + px]; if (v > max) max = v; }
+  }
+  const L = buildLUT(stops), img = g.createImageData(P, P), d = img.data, lm = Math.log1p(max);
+  for (let i = 0; i < h.length; i++) {
+    if (!h[i]) continue;
+    const v = Math.pow(Math.log1p(h[i]) / lm, 1.15), t = (v * 235) | 0;
+    d[i * 4] = L[t * 4]; d[i * 4 + 1] = L[t * 4 + 1]; d[i * 4 + 2] = L[t * 4 + 2];
+    d[i * 4 + 3] = Math.min(255, L[t * 4 + 3] * Math.min(1, v * 1.5) * 0.8);
+  }
+  g.putImageData(img, 0, 0);
+  return c;
+}
+for (const th of THEMES) {
+  th.sprites = [0, 1].map(s => th.leaf.map((_, t) => makeLeafSprite(s, t, th)));
+  th.glowS = makeGlow(th.glow);
+  th.seedGlow = makeGlow([255, 246, 220]);
+}
+if (URLP.has('debug')) window.__ivy = { THEMES };
+
+// =====================================================================================
+// 3. 画面・状態
+// =====================================================================================
+const cv = $('cv'), ctx = cv.getContext('2d', { alpha: false });
+let W = 0, H = 0, DPR = 1, DPR_MAX = Math.min(window.devicePixelRatio || 1, LOW ? 1 : 2);
+const view = { cx: 0, cy: 0, S: 1, rot: 0 };
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  DPR = DPR_MAX;
+  while (w * h * DPR * DPR > 8.5e6 && DPR > 1) DPR -= 0.25;
+  W = Math.round(w * DPR); H = Math.round(h * DPR);
+  cv.width = W; cv.height = H;
+  for (const th of THEMES) {
+    const R = Math.hypot(W, H) * 0.6;
+    th.bgGrad = ctx.createRadialGradient(W / 2, H * 0.48, 0, W / 2, H * 0.48, R);
+    th.bgGrad.addColorStop(0, rgba(th.bg0)); th.bgGrad.addColorStop(0.55, rgba(th.bg0.map((v, i) => lerp(v, th.bg1[i], 0.7))));
+    th.bgGrad.addColorStop(1, rgba(th.bg1));
+  }
+  const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.hypot(W, H) * 0.62);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.72)');
+  view.vignette = vg;
+}
+addEventListener('resize', resize);
+resize();
+
+const state = {
+  time: 0, beat: 0, bpm: 84, beatEnv: 0, barEnv: 0, chaos: 0, energy: 0, boost: 0,
+  cycle: 0, presetIdx: 1, theme: 0,
+};
+const pointer = { x: 0, y: 0, active: false, last: 0, speed: 0 };
+const shocks = [];
+const rings = [];
+
+// =====================================================================================
+// 4. 蔦の庭：対称群 D_n / C_n の基本領域で育てた蔦を n 回（鏡映なら 2n 回）複製して描く
+//    Order : 全複製が厳密に重なり合う（群の作用が完全）
+//    Chaos : 複製ごとに位相がずれ、写像が混沌の相棒へ変形し、葉が散る（対称性の破れ）
+// =====================================================================================
+const OG = 72, OH = 1.25;
+let gardenSerial = 0;
+class Garden {
+  constructor(spec, born, themeIdx) {
+    Object.assign(this, spec);
+    this.spec = spec;
+    this.id = ++gardenSerial;
+    this.n = spec.q.n; this.mirror = spec.q.omega === 0;
+    this.born = born; this.theme = THEMES[themeIdx]; this.themeIdx = themeIdx;
+    this.vines = []; this.blooms = [];
+    this.occ = new Float32Array(OG * OG);
+    this.copies = this.n * (this.mirror ? 2 : 1);
+    this.cap = clamp(Math.round((LOW ? 44 : 64) / this.copies), 3, 14);
+    this.icon = makeIcon(spec, this.theme.bloom);
+    this.acc = 0; this.leafSerial = 0; this.chaos = 0; this.gb = 0; this.alpha = 0;
+    this.pre = [];
+    // 主茎：中心近くから放射状に。基本領域の内側に角度を散らす
+    const sector = TAU / this.n * (this.mirror ? 0.5 : 1);
+    const stems = clamp(Math.round(this.cap * 0.3), 1, 4);
+    for (let s = 0; s < stems; s++) {
+      const a = sector * (0.18 + 0.64 * (s + Math.random() * 0.6) / stems);
+      this.addVine(Math.cos(a) * 0.035, Math.sin(a) * 0.035, a + rnd(-0.25, 0.25), 0, 0.013, 0);
+    }
+  }
+  addVine(x, y, h, depth, w0, gb) {
+    const v = { xs: [x], ys: [y], hs: [h], x, y, h, depth, w0, born: gb, len: 0,
+      maxN: depth === 0 ? 120 + (Math.random() * 40 | 0) : depth === 1 ? 55 + (Math.random() * 45 | 0) : 30 + (Math.random() * 30 | 0),
+      state: 0, curlStart: 0, curlJ: 0, curlN: 20 + (Math.random() * 12 | 0), curlDir: Math.random() < 0.5 ? -1 : 1,
+      ph: rnd(0, TAU), leafAcc: rnd(0, 0.03), side: Math.random() < 0.5 ? -1 : 1,
+      spacing: depth === 0 ? 0.068 : 0.058, leaves: [] };
+    this.vines.push(v);
+    return v;
+  }
+  sense(x, y) {
+    const fx = (x + FH) / (2 * FH) * (FG - 1), fy = (y + FH) / (2 * FH) * (FG - 1);
+    const i = fx | 0, j = fy | 0;
+    if (i < 0 || j < 0 || i >= FG - 1 || j >= FG - 1) return 0;
+    const ax = fx - i, ay = fy - j, f = this.field, k = j * FG + i;
+    const v = (f[k] * (1 - ax) + f[k + 1] * ax) * (1 - ay) + (f[k + FG] * (1 - ax) + f[k + FG + 1] * ax) * ay;
+    const oi = ((x + OH) / (2 * OH) * OG) | 0, oj = ((y + OH) / (2 * OH) * OG) | 0;
+    const o = (oi >= 0 && oj >= 0 && oi < OG && oj < OG) ? this.occ[oj * OG + oi] : 1;
+    return v - 0.6 * o;
+  }
+  // 混み合いを群の全軌道に書き込む（自分の対称像も避ける）
+  mark(x, y) {
+    for (let k = 0; k < this.n; k++) {
+      const a = TAU * k / this.n, c = Math.cos(a), s = Math.sin(a);
+      for (let m = 0; m < (this.mirror ? 2 : 1); m++) {
+        const yy = m ? -y : y, X = c * x - s * yy, Y = s * x + c * yy;
+        const oi = ((X + OH) / (2 * OH) * OG) | 0, oj = ((Y + OH) / (2 * OH) * OG) | 0;
+        for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+          const ii = oi + di, jj = oj + dj;
+          if (ii < 0 || jj < 0 || ii >= OG || jj >= OG) continue;
+          const w = di === 0 && dj === 0 ? 0.5 : 0.14;
+          this.occ[jj * OG + ii] = Math.min(1.5, this.occ[jj * OG + ii] + w);
+        }
+      }
+    }
+  }
+  grow(v, gb) {
+    const ds = 0.0085;
+    if (v.state === 0) {
+      const SD = 0.065, SA = 0.55, h = v.h, x = v.x, y = v.y;
+      const F = this.sense(x + Math.cos(h) * SD, y + Math.sin(h) * SD);
+      const Lv = this.sense(x + Math.cos(h + SA) * SD, y + Math.sin(h + SA) * SD);
+      const Rv = this.sense(x + Math.cos(h - SA) * SD, y + Math.sin(h - SA) * SD);
+      const m = Math.max(Math.abs(F), Math.abs(Lv), Math.abs(Rv), 0.05);
+      let turn = 0.2 * (Lv - Rv) / m;
+      if (F < Lv && F < Rv) turn += Lv > Rv ? 0.1 : -0.1;
+      turn += Math.sin(v.len * 9 + v.ph) * 0.05;                      // 蛇行
+      turn += (Math.random() - 0.5) * (0.07 + 0.25 * this.chaos);     // 揺らぎ
+      const r = Math.hypot(x, y);
+      if (r > 0.96) turn += clamp(angDiff(Math.atan2(-y, -x), h) * (r - 0.96) * 4, -0.2, 0.2);
+      // ポインタ（光）へ伸びる：全ての対称像に向けて同時に
+      if (pointer.active && this.pre.length) {
+        let best = null, bd = 0.75;
+        for (const p of this.pre) { const d = Math.hypot(p[0] - x, p[1] - y); if (d < bd) { bd = d; best = p; } }
+        if (best) turn += angDiff(Math.atan2(best[1] - y, best[0] - x), h) * 0.16 * (1 - bd / 0.75);
+      }
+      turn = clamp(turn, -0.24, 0.24);
+      v.h += turn; v.x += Math.cos(v.h) * ds; v.y += Math.sin(v.h) * ds; v.len += ds;
+      v.xs.push(v.x); v.ys.push(v.y); v.hs.push(v.h);
+      const N = v.xs.length;
+      if (N > 4) this.mark(v.xs[N - 4], v.ys[N - 4]);
+      // 葉（互生）
+      v.leafAcc += ds;
+      if (v.leafAcc >= v.spacing && N > (v.depth ? 3 : 16)) {
+        v.leafAcc = rnd(-0.008, 0.006); v.side = -v.side;
+        const big = v.depth === 0 ? 0.06 : v.depth === 1 ? 0.05 : 0.041;
+        v.leaves.push({ i: N - 1, side: v.side, size: big * rnd(0.78, 1.18), ang: rnd(0.62, 1.05),
+          base: Math.random() < 0.12 ? 3 : (Math.random() * 3) | 0, shape: v.depth === 0 && Math.random() < 0.35 ? 1 : 0,
+          thr: rnd(0.12, 0.95), auMax: 4 + (Math.random() * 4 | 0), shedThr: rnd(0.4, 1.25), born: gb,
+          id: this.leafSerial++, shed: false, shedNow: false });
+      }
+      // 分枝
+      if (v.depth < 2 && N > 12 && this.vines.length < this.cap && gb < 34 && Math.random() < (v.depth ? 0.03 : 0.05)) {
+        const s = Math.random() < 0.5 ? -1 : 1;
+        this.addVine(v.x, v.y, v.h + s * rnd(0.55, 1.05), v.depth + 1, v.w0 * 0.6, gb);
+      }
+      if (N >= v.maxN) { v.state = 1; v.curlStart = N - 1; }
+    } else if (v.state === 1) {
+      // 巻きひげ：曲率を増しながららせんに収束
+      const j = v.curlJ++;
+      v.h += v.curlDir * (0.1 + j * 0.022);
+      const d = ds * 0.85 * Math.pow(0.93, j);
+      v.x += Math.cos(v.h) * d; v.y += Math.sin(v.h) * d;
+      v.xs.push(v.x); v.ys.push(v.y); v.hs.push(v.h);
+      if (j >= v.curlN) {
+        v.state = 2;
+        if (v.depth <= 1 && Math.random() < 0.8)
+          this.blooms.push({ v, i: v.curlStart, born: Math.max(gb + rnd(0.5, 3), 24 + rnd(0, 8)),
+            size: (v.depth ? 0.058 : 0.078) * rnd(0.85, 1.15), dir: Math.random() < 0.5 ? -1 : 1, burst: false, burstNow: false });
+      }
+    }
+  }
+  update(beat, dB) {
+    const gb = this.gb = beat - this.born;
+    this.chaos = smooth(45, 53, gb) * (1 - smooth(64, 74, gb));
+    this.alpha = smooth(0, 2.5, gb) * (1 - smooth(62, 76, gb));
+    // ポインタの対称像（基本領域への引き戻し）
+    this.pre.length = 0;
+    if (pointer.active) {
+      const ux = (pointer.x - view.cx) / view.S, uy = (pointer.y - view.cy) / view.S;
+      for (let k = 0; k < this.n; k++) {
+        const a = -(TAU * k / this.n + view.rot), c = Math.cos(a), s = Math.sin(a);
+        const bx = c * ux - s * uy, by = s * ux + c * uy;
+        this.pre.push([bx, by]);
+        if (this.mirror) this.pre.push([bx, -by]);
+      }
+    }
+    // 拍に合わせて脈打つ成長
+    const gate = smooth(0, 2, gb) * (1 - smooth(42, 50, gb));
+    this.acc += dB * 5.8 * (0.45 + 1.1 * state.beatEnv) * gate;
+    let it = 0;
+    while (this.acc >= 1 && it < 8) {
+      this.acc -= 1; it++;
+      const L = this.vines.length;
+      for (let i = 0; i < L; i++) if (this.vines[i].state !== 2) this.grow(this.vines[i], gb);
+    }
+    // 落葉：混沌と、タップの衝撃で
+    const ce = this.chaos + state.boost * 0.35 + smooth(60, 72, gb) * 0.6;
+    if (ce > 0.3) for (const v of this.vines) for (const L of v.leaves)
+      if (!L.shed && !L.shedNow && ce > L.shedThr && Math.random() < 0.035) L.shedNow = true;
+    for (const b of this.blooms) if (!b.burst && this.chaos > 0.55) { b.burst = true; b.burstNow = true; }
+  }
+  draw(g, t) {
+    const a = this.alpha; if (a <= 0.003) return;
+    const th = this.theme, S = view.S, cx = view.cx, cy = view.cy, gb = this.gb;
+    const chaos = clamp(this.chaos + state.boost * 0.5, 0, 1.2);
+    const wither = smooth(56, 72, gb);
+    // 群の各元に対応する描画インスタンス
+    const inst = [];
+    for (let k = 0; k < this.n; k++) for (let m = 0; m < (this.mirror ? 2 : 1); m++) {
+      const sd = k * 3.7 + m * 11.3;
+      const ang = TAU * k / this.n + view.rot + chaos * 0.34 * Math.sin(t * 0.55 + sd);
+      inst.push({ c: Math.cos(ang), s: Math.sin(ang), f: m ? -1 : 1, sc: 1 + chaos * 0.11 * Math.sin(t * 0.8 + sd * 1.7), sd, k });
+    }
+    const sway = 0.004 + 0.004 * state.beatEnv, camp = chaos * 0.085;
+    const stemCol = th.stem.map((v, i) => lerp(v, th.wither[i], wither));
+    const hiCol = th.stemHi.map((v, i) => lerp(v, th.wither[i] * 1.6, wither));
+    const activeShocks = shocks.filter(s => s.amp > 0.01);
+    g.globalAlpha = a;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    const leafQ = this._leafQ || (this._leafQ = []); leafQ.length = 0;
+    const bloomQ = this._bloomQ || (this._bloomQ = []); bloomQ.length = 0;
+    for (const v of this.vines) {
+      const N = v.xs.length; if (N < 2) continue;
+      // 節ごとの太さ（肥大成長＋先細り＋巻きひげ）
+      const M = v.state === 0 ? N : v.curlStart + 1;
+      const mature = 0.45 + 0.55 * smooth(0, 12, gb - v.born);
+      for (let i = 0; i < N; i++) {
+        let w;
+        if (i < M) { const tt = i / Math.max(M - 1, 1); w = v.w0 * (1 - 0.62 * tt); if (v.state === 0) w *= clamp((N - 1 - i) / 7, 0.2, 1); }
+        else w = v.w0 * 0.32 * (1 - 0.75 * (i - M) / (v.curlN + 1));
+        WS[i] = w * mature * S * 0.5;
+      }
+      g.beginPath();
+      for (const I of inst) {
+        // 変換：鏡映 → 法線方向の揺らぎ（秩序の呼吸／混沌のうねり）→ 回転
+        for (let i = 0; i < N; i++) {
+          const tt = i / N, env = tt * Math.sqrt(tt);
+          const nz = Math.sin(i * 0.07 + t * 1.7 + I.sd * 1.3) + 0.6 * Math.sin(i * 0.19 - t * 2.6 + I.sd * 2.9);
+          const nb = Math.sin(i * 0.15 - state.beat * TAU * 0.5 + v.ph);
+          const d = (sway * nb + camp * nz) * env;
+          const hh = v.hs[i], x = v.xs[i] - Math.sin(hh) * d, y = (v.ys[i] + Math.cos(hh) * d) * I.f;
+          let sx = cx + (I.c * x - I.s * y) * I.sc * S, sy = cy + (I.s * x + I.c * y) * I.sc * S;
+          for (const sh of activeShocks) {
+            const dx = sx - sh.x, dy = sy - sh.y, dd = Math.hypot(dx, dy) + 1e-3;
+            const gg = sh.amp * Math.exp(-(((dd - sh.r) / sh.w) ** 2));
+            sx += dx / dd * gg; sy += dy / dd * gg;
+          }
+          BX[i] = sx; BY[i] = sy;
+        }
+        for (let i = 0; i < N; i++) {
+          const i0 = i > 0 ? i - 1 : i, i1 = i < N - 1 ? i + 1 : i;
+          const tx = BX[i1] - BX[i0], ty = BY[i1] - BY[i0], l = Math.hypot(tx, ty) || 1;
+          NXs[i] = -ty / l; NYs[i] = tx / l;
+        }
+        g.moveTo(BX[0] + NXs[0] * WS[0], BY[0] + NYs[0] * WS[0]);
+        for (let i = 1; i < N; i++) g.lineTo(BX[i] + NXs[i] * WS[i], BY[i] + NYs[i] * WS[i]);
+        for (let i = N - 1; i >= 0; i--) g.lineTo(BX[i] - NXs[i] * WS[i], BY[i] - NYs[i] * WS[i]);
+        g.closePath();
+        // 葉・花の位置をこのインスタンスの曲線から拾う
+        for (const L of v.leaves) {
+          if (L.shed) continue;
+          const i = L.i; if (i >= N) continue;
+          const side = L.side * I.f;
+          const tang = Math.atan2(BY[Math.min(i + 1, N - 1)] - BY[Math.max(i - 1, 0)], BX[Math.min(i + 1, N - 1)] - BX[Math.max(i - 1, 0)]);
+          let ang = tang - side * L.ang;
+          ang += Math.sin(t * 1.3 + L.id * 0.7 + I.k) * 0.07 + chaos * 0.55 * Math.sin(t * 4.2 + L.id * 1.3 + I.sd);
+          let fl = 0;
+          if (pointer.active) { const dd = Math.hypot(BX[i] - pointer.x, BY[i] - pointer.y) / S; if (dd < 0.25) fl = (1 - dd / 0.25); }
+          ang += fl * 0.35 * Math.sin(t * 9 + L.id);
+          const age = gb - L.born;
+          const unfold = easeOutBack(age / 3.2);
+          const scale = L.size * S / SPR_L * unfold * (1 + 0.07 * state.beatEnv * (1 - chaos));
+          // 葉色：混沌・枯死で紅葉へ
+          let tone = L.base;
+          const au = clamp((chaos * 0.8 + wither * 0.7 - L.thr) / 0.35, 0, 1);
+          if (au > 0.2) tone = Math.min(L.auMax, 4 + Math.floor((au - 0.2) / 0.8 * 3.99));
+          if (L.shedNow) {
+            if (Math.random() < shedSpawnProb()) spawnFalling(BX[i], BY[i], ang, scale, th.sprites[L.shape][tone]);
+            continue;
+          }
+          leafQ.push(BX[i], BY[i], ang, scale, L.shape * 8 + tone);
+        }
+        for (const b of this.blooms) {
+          if (b.v !== v || b.i >= N) continue;
+          const o = clamp((gb - b.born) / 4, 0, 1); if (o <= 0) continue;
+          bloomQ.push(BX[b.i], BY[b.i], b, I);
+        }
+      }
+      for (const L of v.leaves) if (L.shedNow) { L.shedNow = false; L.shed = true; }
+      g.fillStyle = rgba(stemCol); g.fill();
+      g.strokeStyle = rgba(hiCol, 0.28); g.lineWidth = Math.max(1, v.w0 * S * 0.16 * mature); g.stroke();
+    }
+    // 葉
+    const spr = th.sprites;
+    for (let j = 0; j < leafQ.length; j += 5) {
+      const x = leafQ[j], y = leafQ[j + 1], an = leafQ[j + 2], s = leafQ[j + 3], si = leafQ[j + 4];
+      if (s <= 0.002) continue;
+      const c = Math.cos(an) * s, sn = Math.sin(an) * s;
+      g.setTransform(c, sn, -sn, c, x, y);
+      g.drawImage(spr[si >> 3][si & 7], -SPR_AX, -SPR_OY);
+    }
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    // 花（写像のアトラクタそのもの）
+    g.globalCompositeOperation = 'lighter';
+    for (let j = 0; j < bloomQ.length; j += 4) {
+      const x = bloomQ[j], y = bloomQ[j + 1], b = bloomQ[j + 2], I = bloomQ[j + 3];
+      const open = easeOutBack((gb - b.born) / 4) * (1 - smooth(0.5, 0.95, this.chaos));
+      if (b.burstNow) burstPollen(x, y, th, 10);
+      if (open <= 0.01) continue;
+      const pulse = 1 + 0.12 * state.beatEnv + 0.1 * state.barEnv;
+      const sz = b.size * S * open * pulse;
+      g.globalAlpha = a * 0.3 * open;
+      g.drawImage(th.glowS, x - sz * 1.5, y - sz * 1.5, sz * 3, sz * 3);
+      g.globalAlpha = a * 0.85 * Math.min(1, open);
+      const rr = t * 0.12 * b.dir + I.k;
+      const c = Math.cos(rr) * sz / 84, s = Math.sin(rr) * sz / 84;
+      g.setTransform(c, s, -s * I.f, c * I.f, x, y);
+      g.drawImage(this.icon, -84, -84);
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      if (state.beatFlag && Math.random() < 0.35) emitPollen(x, y, th, 1);
+    }
+    for (const b of this.blooms) b.burstNow = false;
+    g.globalCompositeOperation = 'source-over';
+    g.globalAlpha = 1;
+  }
+}
+const BUF = 512;
+const BX = new Float32Array(BUF), BY = new Float32Array(BUF), NXs = new Float32Array(BUF), NYs = new Float32Array(BUF), WS = new Float32Array(BUF);
+
+// =====================================================================================
+// 5. 粒子：落葉（3D 回転するようなひるがえり）と花粉
+// =====================================================================================
+const falling = [], pollen = [];
+const MAX_FALL = LOW ? 500 : 1200, MAX_POLLEN = LOW ? 260 : 600;
+const shedSpawnProb = () => clamp(1 - falling.length / MAX_FALL, 0, 1) * 0.6;
+function spawnFalling(x, y, a, s, spr) {
+  if (falling.length >= MAX_FALL) return;
+  falling.push({ x, y, vx: rnd(-30, 30) * DPR, vy: rnd(-40, 10) * DPR, a, va: rnd(-2.5, 2.5), s, spr,
+    flip: rnd(0, TAU), vf: rnd(1.5, 4.5) * (Math.random() < 0.5 ? -1 : 1), life: 1, decay: rnd(1 / 16, 1 / 9) });
+}
+function emitPollen(x, y, th, n) {
+  for (let i = 0; i < n && pollen.length < MAX_POLLEN; i++)
+    pollen.push({ x, y, vx: rnd(-14, 14) * DPR, vy: rnd(-26, -6) * DPR, life: 1, decay: rnd(0.12, 0.3), s: rnd(5, 13) * DPR, spr: th.glowS });
+}
+function burstPollen(x, y, th, n) {
+  for (let i = 0; i < n && pollen.length < MAX_POLLEN; i++) {
+    const a = rnd(0, TAU), sp = rnd(30, 140) * DPR;
+    pollen.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, decay: rnd(0.25, 0.5), s: rnd(5, 12) * DPR, spr: th.glowS });
+  }
+}
+function wind(x, y, t) {
+  const k = 1 / DPR;
+  return [Math.sin(y * k * 0.004 + t * 0.6) + 0.55 * Math.sin((x + y) * k * 0.007 - t * 1.1),
+          0.6 * Math.cos(x * k * 0.005 - t * 0.5)];
+}
+function updateParticles(dt) {
+  const t = state.time, ws = (35 + state.chaos * 240) * DPR;
+  for (let i = falling.length - 1; i >= 0; i--) {
+    const p = falling[i], w = wind(p.x, p.y, t);
+    p.vx += (w[0] * ws - p.vx) * dt * 1.4;
+    p.vy += ((55 * DPR + w[1] * ws * 0.4) - p.vy) * dt * 1.1;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.a += p.va * dt * (1 + state.chaos); p.flip += p.vf * dt;
+    p.life -= p.decay * dt;
+    if (p.life <= 0 || p.y > H + 80 * DPR || p.x < -120 * DPR || p.x > W + 120 * DPR) falling.splice(i, 1);
+  }
+  for (let i = pollen.length - 1; i >= 0; i--) {
+    const p = pollen[i], w = wind(p.x, p.y, t * 1.3);
+    p.vx += (w[0] * 18 * DPR - p.vx) * dt * 0.8; p.vy += (-14 * DPR + w[1] * 10 * DPR - p.vy) * dt * 0.6;
+    p.x += p.vx * dt; p.y += p.vy * dt; p.life -= p.decay * dt;
+    if (p.life <= 0) pollen.splice(i, 1);
+  }
+}
+function drawParticles(g) {
+  for (const p of falling) {
+    const fx = Math.cos(p.flip), c = Math.cos(p.a) * p.s, s = Math.sin(p.a) * p.s;
+    g.globalAlpha = clamp(p.life * 2.5, 0, 1);
+    g.setTransform(c * fx, s * fx, -s, c, p.x, p.y);
+    g.drawImage(p.spr, -SPR_OX, -SPR_OY);
+  }
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalCompositeOperation = 'lighter';
+  for (const p of pollen) {
+    const f = Math.sin(clamp(p.life, 0, 1) * Math.PI);
+    g.globalAlpha = 0.85 * f;
+    g.drawImage(p.spr, p.x - p.s / 2, p.y - p.s / 2, p.s, p.s);
+  }
+  g.globalCompositeOperation = 'source-over';
+  g.globalAlpha = 1;
+}
+
+// =====================================================================================
+// 6. 背景の「塵」：写像の軌道をライブで積分。混沌では相棒のパラメータへ連続変形する
+// =====================================================================================
+const Dust = (() => {
+  const D = LOW ? 256 : 360, c = mk(D), g = c.getContext('2d');
+  const hist = new Float32Array(D * D), img = g.createImageData(D, D), u32 = new Uint32Array(img.data.buffer);
+  const LOG = new Uint8Array(1024);
+  for (let j = 0; j < 1024; j++) LOG[j] = Math.round(255 * Math.log1p(j / 1023 * 36) / Math.log1p(36));
+  let lut = new Uint32Array(256), max = 1, x = 0.01, y = 0.01, spec = null;
+  function setTheme(th) {
+    const L = buildLUT(th.dust);
+    for (let i = 0; i < 256; i++) lut[i] = (L[i * 4 + 3] << 24) | (L[i * 4 + 2] << 16) | (L[i * 4 + 1] << 8) | L[i * 4];
+  }
+  function setSpec(s) { spec = s; x = s.x0; y = s.y0; }
+  function update(chaos) {
+    if (!spec) return;
+    const q = lerpQ(spec.q, spec.qc, clamp(chaos, 0, 1)), R = lerp(spec.R, spec.Rc, clamp(chaos, 0, 1));
+    const sc = D * 0.46 / R, P = LOW ? 14000 : 30000, half = D / 2;
+    for (let i = 0; i < P; i++) {
+      step(q, x, y); x = NX; y = NY;
+      if (!(Math.abs(x) + Math.abs(y) < 50)) { x = spec.x0; y = spec.y0; continue; }
+      const px = (half + x * sc) | 0, py = (half + y * sc) | 0;
+      if (px >= 0 && px < D && py >= 0 && py < D) hist[py * D + px] += 1;
+    }
+    const decay = lerp(0.955, 0.86, clamp(chaos, 0, 1)), inv = 1023 / max;
+    let nm = 1;
+    for (let i = 0; i < hist.length; i++) {
+      const h = hist[i] * decay; hist[i] = h;
+      if (h > nm) nm = h;
+      u32[i] = h > 0.02 ? lut[LOG[Math.min(1023, (h * inv) | 0)]] : 0;
+    }
+    max = lerp(max, nm, 0.2);
+    g.putImageData(img, 0, 0);
+  }
+  return { canvas: c, D, setTheme, setSpec, update };
+})();
+
+// =====================================================================================
+// 7. 音（任意）：拍に同期した撥弦・心拍・葉擦れとパッド。秩序は五音音階、混沌は不協和へ
+// =====================================================================================
+const Sound = (() => {
+  let ac = null, master, verbIn, pad, padF, on = false, noise, oscs = [];
+  const ROOT = 146.83;   // D3
+  function impulse(sec) {
+    const len = ac.sampleRate * sec, b = ac.createBuffer(2, len, ac.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+    return b;
+  }
+  function init() {
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    master = ac.createGain(); master.gain.value = 0;
+    const comp = ac.createDynamicsCompressor(); comp.threshold.value = -18;
+    master.connect(comp); comp.connect(ac.destination);
+    const verb = ac.createConvolver(); verb.buffer = impulse(3.4);
+    const wet = ac.createGain(); wet.gain.value = 0.5; verbIn = ac.createGain();
+    verbIn.connect(verb); verb.connect(wet); wet.connect(master);
+    const nb = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), nd = nb.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    noise = nb;
+    padF = ac.createBiquadFilter(); padF.type = 'lowpass'; padF.frequency.value = 420; padF.Q.value = 0.8;
+    pad = ac.createGain(); pad.gain.value = 0.035;
+    padF.connect(pad); pad.connect(master); pad.connect(verbIn);
+    for (const semi of [-12, -5, 0, 3, 7]) {
+      const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = ROOT * 2 ** (semi / 12); o.detune.value = rnd(-7, 7);
+      o.connect(padF); o.start(); oscs.push([o, semi]);
+    }
+  }
+  function toggle() {
+    if (!ac) init();
+    if (ac.state === 'suspended') ac.resume();
+    on = !on;
+    master.gain.setTargetAtTime(on ? 0.75 : 0, ac.currentTime, 0.5);
+    return on;
+  }
+  function pluck(f, t, vel, bright) {
+    const o = ac.createOscillator(), o2 = ac.createOscillator(), fl = ac.createBiquadFilter(), gn = ac.createGain();
+    o.type = 'triangle'; o.frequency.value = f; o2.type = 'sine'; o2.frequency.value = f * 2.001;
+    fl.type = 'lowpass'; fl.frequency.value = 900 + bright * 4000;
+    gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(vel, t + 0.006); gn.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+    o.connect(fl); o2.connect(fl); fl.connect(gn); gn.connect(master); gn.connect(verbIn);
+    o.start(t); o2.start(t); o.stop(t + 1.7); o2.stop(t + 1.7);
+  }
+  function thump(t, vel) {
+    const o = ac.createOscillator(), gn = ac.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(88, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.35);
+    gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(vel, t + 0.01); gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+    o.connect(gn); gn.connect(master); o.start(t); o.stop(t + 0.65);
+  }
+  function rustle(t, vel) {
+    const s = ac.createBufferSource(), f = ac.createBiquadFilter(), gn = ac.createGain();
+    s.buffer = noise; s.playbackRate.value = rnd(0.7, 1.3);
+    f.type = 'bandpass'; f.frequency.value = rnd(2500, 6000); f.Q.value = 1.2;
+    gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(vel, t + 0.08); gn.gain.exponentialRampToValueAtTime(0.0001, t + rnd(0.3, 0.9));
+    s.connect(f); f.connect(gn); gn.connect(master); gn.connect(verbIn); s.start(t); s.stop(t + 1);
+  }
+  const PENTA = [0, 3, 5, 7, 10, 12, 15, 17, 19, 22];
+  const OUT = [1, 6, 8, 11, 13, 18];
+  function beat(i, chaos, n, bpm, bloom) {
+    if (!on) return;
+    const t = ac.currentTime + 0.02, spb = 60 / bpm;
+    if (i % 4 === 0) thump(t, 0.55 - chaos * 0.15);
+    else if (chaos > 0.4 && Math.random() < chaos * 0.6) thump(t, 0.25);
+    const idx = (i * n) % PENTA.length;
+    pluck(ROOT * 2 ** (PENTA[idx] / 12), t, 0.16 * (1 - chaos * 0.4), 0.3 + chaos * 0.6);
+    if (bloom > 0.3) pluck(ROOT * 2 ** ((PENTA[(idx + 2) % PENTA.length] + 12) / 12), t + spb / 2, 0.07 * bloom, 0.8);
+    if (chaos > 0.15) {
+      const k = 1 + (Math.random() * 3 * chaos | 0);
+      for (let j = 0; j < k; j++) {
+        const semi = Math.random() < chaos * 0.6 ? OUT[Math.random() * OUT.length | 0] : PENTA[Math.random() * PENTA.length | 0];
+        pluck(ROOT * 2 ** ((semi + 12 * (Math.random() < 0.5 ? 1 : 0)) / 12), t + Math.random() * spb, 0.07 * chaos, 0.9);
+      }
+      if (Math.random() < chaos) rustle(t + Math.random() * spb * 0.5, 0.05 + 0.07 * chaos);
+    }
+  }
+  function update(chaos) {
+    if (!on) return;
+    padF.frequency.setTargetAtTime(380 + chaos * 2400, ac.currentTime, 0.6);
+    for (const [o] of oscs) o.detune.setTargetAtTime(rnd(-7, 7) * (1 + chaos * 5), ac.currentTime, 1.5);
+  }
+  function setRoot(semi) {
+    if (!ac) return;
+    for (const [o, s] of oscs) o.frequency.setTargetAtTime(ROOT * 2 ** ((s + semi) / 12), ac.currentTime, 2.5);
+  }
+  return { toggle, beat, update, setRoot, get on() { return on; } };
+})();
+
+// =====================================================================================
+// 8. 庭のスケジューラ：裏で次の「美しい花」を探索（Beauty 最大）し、秩序⇄混沌を周期で回す
+// =====================================================================================
+const CYCLE = 64;   // 1 輪あたりの拍数
+const ready = [];
+let job = null;
+function nextJob() {
+  if (state.presetIdx < PRESETS.length && (state.cycle % 2 === 0 || Math.random() < 0.25)) {
+    const [name, q] = PRESETS[state.presetIdx++];
+    return specJob({ ...q }, name);
+  }
+  return discoverJob();
+}
+function runJobs(budgetMs) {
+  const t0 = performance.now();
+  while (performance.now() - t0 < budgetMs) {
+    if (!job) { if (ready.length >= 2) return; job = nextJob(); }
+    const r = job.next();
+    if (r.done) { if (r.value) ready.push(r.value); job = null; }
+  }
+}
+const gardens = [];
+function plant(spec) {
+  state.theme = gardens.length ? (state.theme + 1) % THEMES.length : 0;
+  const g = new Garden(spec, state.beat, state.theme);
+  gardens.push(g);
+  Dust.setTheme(g.theme); Dust.setSpec(spec);
+  Sound.setRoot([0, -2, 3, -4, 5, -5][state.cycle % 6]);
+  state.cycle++;
+  updateHudStatic(g);
+}
+
+// =====================================================================================
+// 9. テンポ：80–120 BPM を、混沌の緊張・ゆっくりした情動の LFO・観客の関わりで往復する
+// =====================================================================================
+function updateTempo(dt) {
+  const lfo = 0.5 + 0.5 * Math.sin(TAU * state.time / 96 - 1.2);
+  const tension = clamp(0.06 + 0.64 * state.chaos + 0.2 * lfo + 0.5 * state.energy, 0, 1);
+  const target = 80 + 40 * tension;
+  state.bpm += (target - state.bpm) * (1 - Math.exp(-dt / 2.2));
+  state.bpm = clamp(state.bpm, 80, 120);
+}
+function onBeat(i) {
+  state.beatFlag = true;
+  const lead = gardens[gardens.length - 1];
+  const order = 1 - state.chaos;
+  if (i % 4 === 0 || state.chaos > 0.45)
+    rings.push({ t0: state.time, str: (i % 4 === 0 ? 0.22 : 0.1) * (0.4 + 0.6 * Math.max(order, state.chaos)), seed: rnd(0, TAU), n: lead.n });
+  const bloom = lead ? smooth(26, 34, lead.gb) * (1 - smooth(44, 50, lead.gb)) : 0;
+  Sound.beat(i, state.chaos, lead ? lead.n : 5, state.bpm, bloom);
+  const dot = $('dot'); dot.style.setProperty('--p', 1);
+}
+
+// =====================================================================================
+// 10. HUD
+// =====================================================================================
+const hud = $('hud');
+let hudOn = HUD_DEFAULT;
+hud.classList.toggle('off', !hudOn);
+const PHASES = [[6, '萌芽', 'SPROUT'], [28, '成長', 'GROWTH'], [45, '開花', 'BLOOM · ORDER'], [60, '混沌', 'CHAOS'], [1e9, '還元', 'RETURN']];
+const SUBS = '₀₁₂₃₄₅₆₇₈₉';
+const sub = n => String(n).split('').map(d => SUBS[+d]).join('');
+function updateHudStatic(g) {
+  $('sym').textContent = (g.mirror ? 'D' : 'C') + sub(g.n) + (g.mirror ? ' dihedral symmetry' : ' cyclic symmetry');
+  $('cycle').textContent = `№ ${String(state.cycle).padStart(3, '0')} · ${(g.name || 'DISCOVERED').toUpperCase()} · ${g.theme.name}`;
+}
+let hudTick = 0, lastPhase = '';
+function updateHud() {
+  const dot = $('dot');
+  dot.style.setProperty('--p', (0.35 + 0.65 * state.beatEnv).toFixed(3));
+  if (++hudTick % 5) return;
+  const g = gardens[gardens.length - 1];
+  const lead = gardens.find(x => x.gb < 64) || g;
+  $('bpm').textContent = Math.round(state.bpm);
+  const c = clamp(state.chaos, 0, 1) * 100;
+  $('mark').style.left = c + '%'; $('fill').style.width = c + '%';
+  const ph = PHASES.find(p => lead.gb < p[0]);
+  if (ph[1] !== lastPhase) { lastPhase = ph[1]; $('phaseJa').textContent = ph[1]; $('phaseEn').textContent = ph[2]; }
+  const q = lerpQ(lead.q, lead.qc, clamp(lead.chaos, 0, 1)), b = lead.beauty, ly = lerp(lead.a.lyap, lead.ac ? lead.ac.lyap : lead.a.lyap, clamp(lead.chaos, 0, 1));
+  $('metrics').textContent =
+    `n ${q.n}  λ ${q.lam.toFixed(3)}  α ${q.alpha.toFixed(3)}  β ${q.beta.toFixed(3)}  γ ${q.gamma.toFixed(3)}  ω ${q.omega.toFixed(3)}\n` +
+    `Lyapunov ${ly.toFixed(3)}  ·  Beauty ${b.B.toFixed(3)} = O ${b.O.toFixed(2)} × C ${b.C.toFixed(2)} × K ${b.K.toFixed(2)}`;
+}
+
+// =====================================================================================
+// 11. インタラクション
+// =====================================================================================
+let idleTimer = 0;
+function wake() { document.body.classList.remove('idle'); idleTimer = 0; }
+cv.addEventListener('pointermove', e => {
+  const x = e.clientX * DPR, y = e.clientY * DPR, now = performance.now();
+  const dtm = Math.max(8, now - pointer.last);
+  if (pointer.active || e.pointerType === 'mouse') {
+    const sp = Math.hypot(x - pointer.x, y - pointer.y) / DPR / dtm * 1000;
+    state.energy = clamp(state.energy + Math.min(sp, 2400) / 2400 * 0.035, 0, 1);
+  }
+  pointer.x = x; pointer.y = y; pointer.last = now; pointer.active = true;
+  wake();
+});
+cv.addEventListener('pointerdown', e => {
+  pointer.x = e.clientX * DPR; pointer.y = e.clientY * DPR; pointer.active = true; pointer.last = performance.now();
+  shocks.push({ x: pointer.x, y: pointer.y, r: 0, w: 70 * DPR, amp: 34 * DPR, t0: state.time });
+  if (shocks.length > 4) shocks.shift();
+  state.energy = clamp(state.energy + 0.22, 0, 1);
+  state.boost = clamp(state.boost + 0.38, 0, 1);
+  const g = gardens[gardens.length - 1];
+  burstPollen(pointer.x, pointer.y, g.theme, 18);
+  wake();
+});
+cv.addEventListener('pointerleave', () => { pointer.active = false; });
+cv.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') pointer.active = false; });
+cv.addEventListener('dblclick', () => toggleFullscreen());
+function toggleFullscreen() {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+  else document.exitFullscreen?.();
+}
+const sndBtn = $('snd');
+function toggleSound() {
+  const on = Sound.toggle();
+  sndBtn.textContent = on ? 'SOUND ON' : 'SOUND OFF';
+  sndBtn.classList.toggle('on', on); sndBtn.setAttribute('aria-pressed', on);
+}
+sndBtn.addEventListener('click', e => { e.stopPropagation(); toggleSound(); });
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'h') { hudOn = !hudOn; hud.classList.toggle('off', !hudOn); }
+  else if (k === 'f') toggleFullscreen();
+  else if (k === 's') toggleSound();
+  else if (k === ' ') { e.preventDefault(); state.boost = 1; state.energy = clamp(state.energy + 0.4, 0, 1); }
+  wake();
+});
+setTimeout(() => $('hint').classList.add('gone'), 9000);
+
+// =====================================================================================
+// 12. メインループ
+// =====================================================================================
+plant(runSync(specJob({ ...PRESETS[0][1] }, PRESETS[0][0])));
+let last = performance.now(), slowAcc = 0, slowFrames = 0;
+function update(dt) {
+  state.time += dt;
+  idleTimer += dt;
+  if (idleTimer > 3.5) { document.body.classList.add('idle'); if (idleTimer > 6) pointer.active = false; }
+  state.energy *= Math.exp(-dt / 5);
+  state.boost *= Math.exp(-dt / 2.4);
+  // 混沌度：庭の位相（最大値）＋タップの衝撃
+  let ch = 0; for (const g of gardens) ch = Math.max(ch, g.chaos * smooth(0, 0.3, g.alpha + 0.3));
+  state.chaos = clamp(ch + state.boost * 0.45, 0, 1);
+  updateTempo(dt);
+  const prev = state.beat;
+  const dB = dt * state.bpm / 60;
+  state.beat += dB;
+  state.beatFlag = false;
+  if (Math.floor(state.beat) !== Math.floor(prev)) onBeat(Math.floor(state.beat));
+  state.beatEnv = Math.exp(-fract(state.beat) * 5.5);
+  state.barEnv = Math.exp(-fract(state.beat / 4) * 6);
+  view.rot += dt * (0.012 + state.chaos * 0.03);
+  // 庭の世代交代
+  const lead = gardens[gardens.length - 1];
+  if (lead.gb >= CYCLE && ready.length) plant(ready.shift());
+  else if (lead.gb >= CYCLE + 3) plant(lead.spec);   // 探索が間に合わなければ同じ花をもう一度
+  for (const g of gardens) g.update(state.beat, dB);
+  while (gardens.length > 1 && gardens[0].gb > 77) gardens.shift();
+  runJobs(LOW ? 2.5 : 4);
+  for (const s of shocks) { const age = state.time - s.t0; s.r = age * 900 * DPR; s.amp = 34 * DPR * Math.exp(-age * 1.6); }
+  while (shocks.length && shocks[0].amp < 0.01) shocks.shift();
+  updateParticles(dt);
+  Dust.update(state.chaos);
+  Sound.update(state.chaos);
+}
+function render() {
+  const g = ctx, t = state.time;
+  const minWH = Math.min(W, H);
+  view.cx = W / 2; view.cy = H / 2;
+  view.S = Math.min(W * (W < H ? 0.47 : 0.4), H * 0.44) * (1 + 0.012 * state.beatEnv + 0.018 * state.barEnv * (1 - state.chaos));
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalCompositeOperation = 'source-over';
+  // 背景（混沌では残像を残す）
+  const lead = gardens[gardens.length - 1], prevG = gardens.length > 1 ? gardens[0] : null;
+  g.globalAlpha = 1 - 0.42 * state.chaos;
+  g.fillStyle = (prevG && prevG.alpha > lead.alpha ? prevG : lead).theme.bgGrad;
+  g.fillRect(0, 0, W, H);
+  if (prevG) { g.globalAlpha = (1 - 0.42 * state.chaos) * lead.alpha * 0.999; g.fillStyle = lead.theme.bgGrad; g.fillRect(0, 0, W, H); }
+  // 塵（アトラクタ）
+  g.globalCompositeOperation = 'lighter';
+  const ds = view.S / 0.46;
+  g.globalAlpha = clamp(0.5 + 0.45 * state.chaos + 0.15 * state.beatEnv, 0, 1);
+  g.save(); g.translate(view.cx, view.cy); g.rotate(view.rot);
+  g.drawImage(Dust.canvas, -ds / 2, -ds / 2, ds, ds);
+  g.restore();
+  // 中心の種の光
+  const seedA = smooth(0, 2, lead.gb) * (1 - smooth(10, 26, lead.gb)) * 0.7 + 0.12 * state.beatEnv * (1 - state.chaos);
+  if (seedA > 0.01) { const r = view.S * (0.12 + 0.06 * state.beatEnv); g.globalAlpha = seedA; g.drawImage(lead.theme.seedGlow, view.cx - r, view.cy - r, r * 2, r * 2); }
+  // 拍の波紋：秩序では n 回対称の花形、混沌では歪む
+  g.lineWidth = Math.max(1, 1.1 * DPR);
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const rg = rings[i], age = state.time - rg.t0, life = 1 - age / 3.2;
+    if (life <= 0) { rings.splice(i, 1); continue; }
+    const r0 = view.S * (0.08 + age * 0.42);
+    g.globalAlpha = rg.str * life * life;
+    g.strokeStyle = rgba(lead.theme.ring);
+    g.beginPath();
+    for (let k = 0; k <= 160; k++) {
+      const ph = k / 160 * TAU;
+      const rr = r0 * (1 + 0.035 * (1 - state.chaos) * Math.cos(rg.n * (ph - view.rot))
+        + 0.07 * state.chaos * Math.sin(3 * ph + age * 5 + rg.seed) * Math.sin(7 * ph - age * 3));
+      const x = view.cx + Math.cos(ph) * rr, y = view.cy + Math.sin(ph) * rr;
+      k ? g.lineTo(x, y) : g.moveTo(x, y);
+    }
+    g.stroke();
+  }
+  g.globalCompositeOperation = 'source-over';
+  g.globalAlpha = 1;
+  // 蔦・葉・花
+  for (const gd of gardens) gd.draw(g, t);
+  g.globalCompositeOperation = 'lighter';
+  // 曼荼羅の中心：その回の写像のアトラクタを鼓動に合わせて灯す
+  for (const gd of gardens) {
+    const ma = gd.alpha * (0.55 + 0.35 * state.beatEnv) * (1 - 0.5 * gd.chaos);
+    if (ma < 0.01) continue;
+    const r = view.S * 0.085 * (1 + 0.1 * state.beatEnv + 0.08 * state.barEnv);
+    g.globalAlpha = ma;
+    g.save(); g.translate(view.cx, view.cy); g.rotate(-view.rot * 2);
+    g.drawImage(gd.icon, -r, -r, r * 2, r * 2);
+    g.restore();
+  }
+  g.globalCompositeOperation = 'source-over';
+  g.globalAlpha = 1;
+  // 粒子
+  drawParticles(g);
+  // ビネット
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalAlpha = 1;
+  g.fillStyle = view.vignette; g.fillRect(0, 0, W, H);
+}
+function frame(now) {
+  requestAnimationFrame(frame);
+  const raw = (now - last) / 1000; last = now;
+  const dt = Math.min(0.05, Math.max(0, raw)) * SPEED;
+  try {
+    const t0 = performance.now();
+    update(dt);
+    const t1 = performance.now();
+    render();
+    updateHud();
+    if (window.__ivy) { const P = window.__ivy.perf || (window.__ivy.perf = { u: 0, r: 0, n: 0 }); P.u += t1 - t0; P.r += performance.now() - t1; P.n++;
+      P.leaves = gardens.reduce((s, g) => s + (g._leafQ ? g._leafQ.length / 5 : 0), 0); P.fall = falling.length; P.pollen = pollen.length; }
+  } catch (err) { console.error(err); }
+  // 重い端末では解像度を自動で下げる（サイネージ常時稼働向け）
+  slowAcc += raw; slowFrames++;
+  if (slowFrames >= 90) {
+    const avg = slowAcc / slowFrames * 1000;
+    if (avg > 26 && DPR_MAX > 1) { DPR_MAX = Math.max(1, DPR_MAX - 0.25); resize(); }
+    slowAcc = 0; slowFrames = 0;
+  }
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
