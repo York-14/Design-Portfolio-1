@@ -36,9 +36,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; t
 .phase .en { font: 300 clamp(10px, 1.15vmin, 14px)/1 "IBM Plex Mono", monospace; letter-spacing: 0.42em; color: var(--muted); }
 .cycle { margin-top: 0.7em; font: 300 clamp(9px, 1vmin, 12px)/1.4 "IBM Plex Mono", monospace; letter-spacing: 0.2em; color: var(--muted); }
 
-.title { font-size: clamp(26px, 4.6vmin, 64px); font-weight: 300; line-height: 1; letter-spacing: 0.04em; }
-.title em { font-style: italic; color: var(--accent); }
-.sub { margin-top: 0.45em; font: 300 clamp(9px, 1.1vmin, 13px)/1.5 "IBM Plex Mono", monospace; letter-spacing: 0.32em; color: var(--muted); text-transform: uppercase; }
+.title { font-size: clamp(20px, 3.1vmin, 42px); font-weight: 300; line-height: 1.15; letter-spacing: 0.02em; text-wrap: balance; }
 .formula { margin-top: 0.9em; font-style: italic; font-weight: 300; font-size: clamp(12px, 1.7vmin, 21px); color: var(--muted); white-space: nowrap; }
 .metrics { margin-top: 0.6em; font: 300 clamp(9px, 1vmin, 12px)/1.6 "IBM Plex Mono", monospace; letter-spacing: 0.12em; color: var(--muted); white-space: pre; }
 
@@ -75,11 +73,10 @@ body.idle .tr .btn { opacity: 0; }
 <div class="hud" id="hud">
   <div class="corner tl">
     <div class="phase"><span class="ja" id="phaseJa">萌芽</span><span class="en" id="phaseEn">SPROUT</span></div>
-    <div class="cycle" id="cycle">№ 001 · EMPEROR'S CLOAK</div>
+    <div class="cycle" id="cycle">SEEKING …</div>
   </div>
   <div class="corner bl">
-    <div class="title">Ivy <em>Mandala</em></div>
-    <div class="sub">Order × Chaos — <span id="sym">D₇</span></div>
+    <div class="title">Beauty Between Order and Chaos</div>
     <div class="formula">z<sub>t+1</sub> = (λ + α|z|² + β Re(z<sup>n</sup>) + iω) z + γ z̄<sup>n−1</sup></div>
     <div class="metrics" id="metrics"></div>
   </div>
@@ -190,9 +187,11 @@ function beautyOf(a) {
 }
 const lerpQ = (a, b, t) => ({ n: a.n, lam: lerp(a.lam, b.lam, t), alpha: lerp(a.alpha, b.alpha, t),
   beta: lerp(a.beta, b.beta, t), gamma: lerp(a.gamma, b.gamma, t), omega: lerp(a.omega, b.omega, t) });
-function randomParams() {
-  return { n: 3 + Math.floor(Math.random() * 8), lam: rnd(-2.8, 2.8), alpha: rnd(-5, 5), beta: rnd(-1.5, 1.5),
-           gamma: rnd(-1.2, 1.2), omega: Math.random() < 0.5 ? 0 : rnd(-0.3, 0.3) };
+// パラメータ探索の範囲（元コードと同じ）。rand は [0,1) を返す関数（確率の乱数でもカオス由来でもよい）
+function randomParams(rand = Math.random) {
+  const r = (lo, hi) => lo + rand() * (hi - lo);
+  return { n: 3 + Math.floor(rand() * 8), lam: r(-2.8, 2.8), alpha: r(-5, 5), beta: r(-1.5, 1.5),
+           gamma: r(-1.2, 1.2), omega: rand() < 0.5 ? 0 : r(-0.3, 0.3) };
 }
 const PRESETS = [
   ["Emperor's Cloak", { lam: -2.08, alpha: 1.0, beta: -0.1, gamma: 0.167, omega: 0, n: 7 }],
@@ -235,14 +234,15 @@ function buildField(q, pr) {
 }
 
 // 「秩序の花」から「混沌の相棒」を探す：ω を立てて鏡映を壊し、Lyapunov 指数が大きい有界な近傍
-function* specJob(q, name) {
+function* specJob(q, name, rand = Math.random, meta = {}) {
+  const rnd = (lo, hi) => lo + rand() * (hi - lo);
   const pr = probe(q); if (!pr) return null;
   const a = analyze(q); yield;
   if (!a) return null;
   const field = buildField(q, pr); yield;
   let best = null, bestScore = -Infinity;
   for (let t = 0; t < 22; t++) {
-    const s = Math.random() < 0.5 ? -1 : 1;
+    const s = rand() < 0.5 ? -1 : 1;
     const c = { n: q.n, omega: q.omega + s * rnd(0.07, 0.22), lam: q.lam + rnd(-0.22, 0.22),
                 gamma: q.gamma * rnd(0.75, 1.25) + rnd(-0.12, 0.12), beta: q.beta + rnd(-0.25, 0.25), alpha: q.alpha * rnd(0.9, 1.12) };
     const ac = analyze(c); yield;
@@ -254,19 +254,110 @@ function* specJob(q, name) {
     if (score > bestScore) { bestScore = score; best = { q: c, R: ac.R, a: ac }; }
   }
   if (!best) { const c = { ...q, omega: q.omega + 0.1 }; const p2 = probe(c); best = { q: c, R: p2 ? p2.R : pr.R, a: null }; }
-  return { q, name, R: pr.R, x0: pr.x, y0: pr.y, a, beauty: beautyOf(a), field, qc: best.q, Rc: best.R, ac: best.a };
+  return { q, name, R: pr.R, x0: pr.x, y0: pr.y, a, beauty: beautyOf(a), field, qc: best.q, Rc: best.R, ac: best.a, ...meta };
 }
 const runSync = gen => { let r; do r = gen.next(); while (!r.done); return r.value; };
-function* discoverJob() {
-  const cands = []; let tries = 0;
-  while (cands.length < 6 && tries < 5000) {
-    const a = analyze(randomParams()); tries++;
-    if (isGood(a) && a.fill > 0.12 && a.fill < 0.7) { a.B = beautyOf(a).B; cands.push(a); }
+
+// =====================================================================================
+// 1.5 次の花の選び方：数式は固定し、パラメータだけを動かす。2 つのモードを URL で切り替える
+//   ?mode=walk  (B) パラメータ空間の散歩：前の花の近傍へ一歩ずつ。Beauty が高い方へ渡り歩く
+//   ?mode=chaos (C) カオス由来：今の花のアトラクタ軌道そのものを乱数源にして次の花を生む
+//   ?seed=xxx   同じ SEED なら同じ花の連なりを再現する（細部の揺らぎは毎回変わる）
+// =====================================================================================
+const MODE = URLP.get('mode') === 'chaos' ? 'chaos' : 'walk';
+const SEED_STR = (URLP.get('seed') || '').trim().slice(0, 32) ||
+  Math.floor(Math.random() * 36 ** 6).toString(36).padStart(6, '0');
+function hashSeed(str) {          // FNV-1a 32bit
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return h >>> 0;
+}
+function mulberry32(a) {          // B 用：SEED から決まる擬似乱数
+  return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const SEED = hashSeed(SEED_STR);
+const accept = a => isGood(a) && a.fill > 0.12 && a.fill < 0.7;
+
+// 候補を k 個集め、Beauty 最大のものを返す（初手・行き詰まり時の跳躍に使う）
+function* searchBest(rand, k = 6) {
+  let best = null, found = 0, tries = 0;
+  while (found < k && tries < 6000) {
+    const a = analyze(randomParams(rand)); tries++;
+    if (accept(a)) { a.B = beautyOf(a).B; found++; if (!best || a.B > best.B) best = a; }
     if (tries % 3 === 0) yield;
   }
-  if (!cands.length) return null;
-  const best = cands.reduce((b, c) => c.B > b.B ? c : b);
-  return yield* specJob(best.q, null);
+  return best;
+}
+
+// --- B. パラメータ空間の散歩 ---
+function makeWalkPicker(rand) {
+  const gauss = () => { const u = Math.max(rand(), 1e-12), v = rand(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v); };
+  const SIG = { lam: 0.16, alpha: 0.38, beta: 0.11, gamma: 0.11 };
+  const LIM = { lam: [-2.8, 2.8], alpha: [-5, 5], beta: [-1.5, 1.5], gamma: [-1.2, 1.2] };
+  function mutate(q) {
+    const m = { ...q };
+    for (const k in SIG) m[k] = clamp(q[k] + gauss() * SIG[k], LIM[k][0], LIM[k][1]);
+    if (rand() < 0.12) m.n = clamp(q.n + (rand() < 0.5 ? -1 : 1), 3, 12);           // 対称次数の分岐
+    if (q.omega === 0) { if (rand() < 0.15) m.omega = (rand() < 0.5 ? -1 : 1) * (0.05 + rand() * 0.15); }  // 鏡映が壊れる
+    else m.omega = rand() < 0.15 ? 0 : clamp(q.omega + gauss() * 0.04, -0.3, 0.3);   // 鏡映が戻る
+    return m;
+  }
+  const dist = (a, b) => Math.hypot((a.lam - b.lam) / SIG.lam, (a.alpha - b.alpha) / SIG.alpha,
+    (a.beta - b.beta) / SIG.beta, (a.gamma - b.gamma) / SIG.gamma) + Math.abs(a.n - b.n) * 3 + Math.abs(a.omega - b.omega) * 20;
+  let cur = null;
+  return function* () {
+    if (cur) {
+      // 近傍を最大 90 回試し、成立する花を 4 つまで集めて Beauty 最大の一歩を選ぶ
+      let best = null, found = 0;
+      for (let t = 0; t < 90 && found < 4; t++) {
+        const q = mutate(cur.q), a = analyze(q);
+        if (t % 2) yield;
+        if (!accept(a) || dist(q, cur.q) < 0.6) continue;
+        a.B = beautyOf(a).B; found++;
+        if (!best || a.B > best.B) best = a;
+      }
+      if (best) { cur = best; return { q: cur.q, label: 'WALK' }; }
+    }
+    const first = !cur;
+    cur = yield* searchBest(rand);                // 初手、または袋小路からの跳躍
+    return cur && { q: cur.q, label: first ? 'WALK · ORIGIN' : 'WALK · LEAP' };
+  };
+}
+
+// --- C. カオス由来：写像の軌道から乱数を汲み出す（Math.random を使わない） ---
+function makeChaosSource(q, x, y) {
+  let k = 0;
+  for (let i = 0; i < 500; i++) { step(q, x, y); x = NX; y = NY; }    // 過渡を捨てる
+  return () => {
+    for (let i = 0; i < 3; i++) {
+      step(q, x, y); x = NX; y = NY;
+      if (!(Math.abs(x) + Math.abs(y) < 1e4)) { x = 0.0123 + k * 1e-5; y = 0.0071; }
+    }
+    k++;
+    // 軌道座標の下位桁（カオスで最も早く情報が失われる桁）を [0,1) に写す
+    return fract(Math.abs(x) * 104729 + Math.abs(y) * 7919 + k * 0.6180339887);
+  };
+}
+function makeChaosPicker() {
+  // 創世の写像（Emperor's Cloak）の初期点を SEED で決める。以後は「今咲いた花」の軌道が次の花の乱数源になる
+  const genesis = PRESETS[0][1];
+  let src = makeChaosSource(genesis, 0.01 + (SEED % 9973) * 1e-7, 0.003 + ((SEED >>> 16) % 9973) * 1e-7);
+  return function* () {
+    const best = yield* searchBest(src);
+    if (!best) return null;
+    const pr = probe(best.q);
+    src = makeChaosSource(best.q, pr.x + src() * 1e-6, pr.y + src() * 1e-6);
+    return { q: best.q, label: 'CHAOS-BORN', rand: src };
+  };
+}
+
+const picker = MODE === 'chaos' ? makeChaosPicker() : makeWalkPicker(mulberry32(SEED));
+const walkRand = MODE === 'walk' ? mulberry32(SEED ^ 0x9e3779b9) : null;   // B の混沌相棒探索用
+function* pickJob() {
+  const pick = yield* picker();
+  if (!pick) return null;
+  return yield* specJob(pick.q, null, pick.rand || walkRand, { label: pick.label });
 }
 
 // =====================================================================================
@@ -417,7 +508,7 @@ resize();
 
 const state = {
   time: 0, beat: 0, bpm: 84, beatEnv: 0, barEnv: 0, chaos: 0, energy: 0, boost: 0,
-  cycle: 0, presetIdx: 1, theme: 0,
+  cycle: 0, theme: 0,
 };
 const pointer = { x: 0, y: 0, active: false, last: 0, speed: 0 };
 const shocks = [];
@@ -804,8 +895,27 @@ const Dust = (() => {
 // 7. 音（任意）：拍に同期した撥弦・心拍・葉擦れとパッド。秩序は五音音階、混沌は不協和へ
 // =====================================================================================
 const Sound = (() => {
-  let ac = null, master, verbIn, pad, padF, on = false, noise, oscs = [];
+  let ac = null, master, verbIn, pad, padF, on = false, noise, oscs = [], keeper = null;
   const ROOT = 146.83;   // D3
+  // iPhone は消音スイッチがオンだと Web Audio が無音になる。
+  // 再生カテゴリを「playback」にして、消音スイッチに関係なく鳴らす（新しい Safari は audioSession、古いものは無音の <audio> を流して切り替える）
+  function silentWavUrl() {
+    const sr = 8000, n = sr / 2, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+  function unlockPlayback() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    try {
+      if (!keeper) { keeper = document.createElement('audio'); keeper.src = silentWavUrl(); keeper.loop = true; keeper.setAttribute('playsinline', ''); }
+      const pr = keeper.play(); if (pr && pr.catch) pr.catch(() => {});
+    } catch (e) {}
+  }
+  // 画面の切り替えなどで止められた音声を、次の操作で再開する
+  function revive() { if (on && ac && ac.state !== 'running') { ac.resume().catch(() => {}); unlockPlayback(); } }
   function impulse(sec) {
     const len = ac.sampleRate * sec, b = ac.createBuffer(2, len, ac.sampleRate);
     for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
@@ -814,7 +924,7 @@ const Sound = (() => {
   function init() {
     ac = new (window.AudioContext || window.webkitAudioContext)();
     master = ac.createGain(); master.gain.value = 0;
-    const comp = ac.createDynamicsCompressor(); comp.threshold.value = -18;
+    const comp = ac.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 8; comp.attack.value = 0.003;
     master.connect(comp); comp.connect(ac.destination);
     const verb = ac.createConvolver(); verb.buffer = impulse(3.4);
     const wet = ac.createGain(); wet.gain.value = 0.5; verbIn = ac.createGain();
@@ -822,19 +932,20 @@ const Sound = (() => {
     const nb = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), nd = nb.getChannelData(0);
     for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
     noise = nb;
-    padF = ac.createBiquadFilter(); padF.type = 'lowpass'; padF.frequency.value = 420; padF.Q.value = 0.8;
-    pad = ac.createGain(); pad.gain.value = 0.035;
+    padF = ac.createBiquadFilter(); padF.type = 'lowpass'; padF.frequency.value = 900; padF.Q.value = 0.8;
+    pad = ac.createGain(); pad.gain.value = 0.05;
     padF.connect(pad); pad.connect(master); pad.connect(verbIn);
-    for (const semi of [-12, -5, 0, 3, 7]) {
+    for (const semi of [0, 7, 12, 15, 19]) {     // スマホのスピーカーでも聞こえる帯域（150〜450 Hz）
       const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = ROOT * 2 ** (semi / 12); o.detune.value = rnd(-7, 7);
       o.connect(padF); o.start(); oscs.push([o, semi]);
     }
   }
   function toggle() {
     if (!ac) init();
-    if (ac.state === 'suspended') ac.resume();
     on = !on;
-    master.gain.setTargetAtTime(on ? 0.75 : 0, ac.currentTime, 0.5);
+    if (on) { unlockPlayback(); if (ac.state !== 'running') ac.resume().catch(() => {}); }
+    else if (keeper) keeper.pause();
+    master.gain.setTargetAtTime(on ? 0.8 : 0, ac.currentTime, 0.3);
     return on;
   }
   function pluck(f, t, vel, bright) {
@@ -850,6 +961,11 @@ const Sound = (() => {
     o.type = 'sine'; o.frequency.setValueAtTime(88, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.35);
     gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(vel, t + 0.01); gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
     o.connect(gn); gn.connect(master); o.start(t); o.stop(t + 0.65);
+    // 小さなスピーカーでも鼓動が分かるよう、倍音の「トン」を重ねる
+    const o2 = ac.createOscillator(), g2 = ac.createGain();
+    o2.type = 'triangle'; o2.frequency.setValueAtTime(240, t); o2.frequency.exponentialRampToValueAtTime(110, t + 0.12);
+    g2.gain.setValueAtTime(0, t); g2.gain.linearRampToValueAtTime(vel * 0.5, t + 0.005); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    o2.connect(g2); g2.connect(master); o2.start(t); o2.stop(t + 0.2);
   }
   function rustle(t, vel) {
     const s = ac.createBufferSource(), f = ac.createBiquadFilter(), gn = ac.createGain();
@@ -866,27 +982,27 @@ const Sound = (() => {
     if (i % 4 === 0) thump(t, 0.55 - chaos * 0.15);
     else if (chaos > 0.4 && Math.random() < chaos * 0.6) thump(t, 0.25);
     const idx = (i * n) % PENTA.length;
-    pluck(ROOT * 2 ** (PENTA[idx] / 12), t, 0.16 * (1 - chaos * 0.4), 0.3 + chaos * 0.6);
-    if (bloom > 0.3) pluck(ROOT * 2 ** ((PENTA[(idx + 2) % PENTA.length] + 12) / 12), t + spb / 2, 0.07 * bloom, 0.8);
+    pluck(ROOT * 2 ** ((PENTA[idx] + 12) / 12), t, 0.3 * (1 - chaos * 0.4), 0.3 + chaos * 0.6);
+    if (bloom > 0.3) pluck(ROOT * 2 ** ((PENTA[(idx + 2) % PENTA.length] + 24) / 12), t + spb / 2, 0.13 * bloom, 0.8);
     if (chaos > 0.15) {
       const k = 1 + (Math.random() * 3 * chaos | 0);
       for (let j = 0; j < k; j++) {
         const semi = Math.random() < chaos * 0.6 ? OUT[Math.random() * OUT.length | 0] : PENTA[Math.random() * PENTA.length | 0];
-        pluck(ROOT * 2 ** ((semi + 12 * (Math.random() < 0.5 ? 1 : 0)) / 12), t + Math.random() * spb, 0.07 * chaos, 0.9);
+        pluck(ROOT * 2 ** ((semi + 12 * (Math.random() < 0.5 ? 2 : 1)) / 12), t + Math.random() * spb, 0.13 * chaos, 0.9);
       }
       if (Math.random() < chaos) rustle(t + Math.random() * spb * 0.5, 0.05 + 0.07 * chaos);
     }
   }
   function update(chaos) {
     if (!on) return;
-    padF.frequency.setTargetAtTime(380 + chaos * 2400, ac.currentTime, 0.6);
+    padF.frequency.setTargetAtTime(900 + chaos * 2400, ac.currentTime, 0.6);
     for (const [o] of oscs) o.detune.setTargetAtTime(rnd(-7, 7) * (1 + chaos * 5), ac.currentTime, 1.5);
   }
   function setRoot(semi) {
     if (!ac) return;
     for (const [o, s] of oscs) o.frequency.setTargetAtTime(ROOT * 2 ** ((s + semi) / 12), ac.currentTime, 2.5);
   }
-  return { toggle, beat, update, setRoot, get on() { return on; } };
+  return { toggle, beat, update, setRoot, revive, get on() { return on; } };
 })();
 
 // =====================================================================================
@@ -895,13 +1011,7 @@ const Sound = (() => {
 const CYCLE = 64;   // 1 輪あたりの拍数
 const ready = [];
 let job = null;
-function nextJob() {
-  if (state.presetIdx < PRESETS.length && (state.cycle % 2 === 0 || Math.random() < 0.25)) {
-    const [name, q] = PRESETS[state.presetIdx++];
-    return specJob({ ...q }, name);
-  }
-  return discoverJob();
-}
+const nextJob = () => pickJob();
 function runJobs(budgetMs) {
   const t0 = performance.now();
   while (performance.now() - t0 < budgetMs) {
@@ -919,6 +1029,7 @@ function plant(spec) {
   Sound.setRoot([0, -2, 3, -4, 5, -5][state.cycle % 6]);
   state.cycle++;
   updateHudStatic(g);
+  if (window.__ivy) (window.__ivy.log || (window.__ivy.log = [])).push({ t: performance.now(), label: spec.name || spec.label, q: spec.q, B: spec.beauty.B });
 }
 
 // =====================================================================================
@@ -936,7 +1047,7 @@ function onBeat(i) {
   const lead = gardens[gardens.length - 1];
   const order = 1 - state.chaos;
   if (i % 4 === 0 || state.chaos > 0.45)
-    rings.push({ t0: state.time, str: (i % 4 === 0 ? 0.22 : 0.1) * (0.4 + 0.6 * Math.max(order, state.chaos)), seed: rnd(0, TAU), n: lead.n });
+    rings.push({ t0: state.time, str: (i % 4 === 0 ? 0.22 : 0.1) * (0.4 + 0.6 * Math.max(order, state.chaos)), seed: rnd(0, TAU), n: lead ? lead.n : 0 });
   const bloom = lead ? smooth(26, 34, lead.gb) * (1 - smooth(44, 50, lead.gb)) : 0;
   Sound.beat(i, state.chaos, lead ? lead.n : 5, state.bpm, bloom);
   const dot = $('dot'); dot.style.setProperty('--p', 1);
@@ -949,18 +1060,18 @@ const hud = $('hud');
 let hudOn = HUD_DEFAULT;
 hud.classList.toggle('off', !hudOn);
 const PHASES = [[6, '萌芽', 'SPROUT'], [28, '成長', 'GROWTH'], [45, '開花', 'BLOOM · ORDER'], [60, '混沌', 'CHAOS'], [1e9, '還元', 'RETURN']];
-const SUBS = '₀₁₂₃₄₅₆₇₈₉';
-const sub = n => String(n).split('').map(d => SUBS[+d]).join('');
 function updateHudStatic(g) {
-  $('sym').textContent = (g.mirror ? 'D' : 'C') + sub(g.n) + (g.mirror ? ' dihedral symmetry' : ' cyclic symmetry');
-  $('cycle').textContent = `№ ${String(state.cycle).padStart(3, '0')} · ${(g.name || 'DISCOVERED').toUpperCase()} · ${g.theme.name}`;
+  $('cycle').textContent = `№ ${String(state.cycle).padStart(3, '0')} · ${(g.name || g.label || 'DISCOVERED').toUpperCase()} · ${g.theme.name} · SEED ${SEED_STR}`;
 }
+$('cycle').textContent = `SEEKING … · ${MODE === 'chaos' ? 'CHAOS-BORN' : 'WALK'} · SEED ${SEED_STR}`;
 let hudTick = 0, lastPhase = '';
 function updateHud() {
   const dot = $('dot');
   dot.style.setProperty('--p', (0.35 + 0.65 * state.beatEnv).toFixed(3));
   if (++hudTick % 5) return;
+  $('bpm').textContent = Math.round(state.bpm);
   const g = gardens[gardens.length - 1];
+  if (!g) return;
   const lead = gardens.find(x => x.gb < 64) || g;
   $('bpm').textContent = Math.round(state.bpm);
   const c = clamp(state.chaos, 0, 1) * 100;
@@ -989,15 +1100,17 @@ cv.addEventListener('pointermove', e => {
   wake();
 });
 cv.addEventListener('pointerdown', e => {
+  Sound.revive();
   pointer.x = e.clientX * DPR; pointer.y = e.clientY * DPR; pointer.active = true; pointer.last = performance.now();
   shocks.push({ x: pointer.x, y: pointer.y, r: 0, w: 70 * DPR, amp: 34 * DPR, t0: state.time });
   if (shocks.length > 4) shocks.shift();
   state.energy = clamp(state.energy + 0.22, 0, 1);
   state.boost = clamp(state.boost + 0.38, 0, 1);
   const g = gardens[gardens.length - 1];
-  burstPollen(pointer.x, pointer.y, g.theme, 18);
+  burstPollen(pointer.x, pointer.y, g ? g.theme : THEMES[0], 18);
   wake();
 });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) Sound.revive(); });
 cv.addEventListener('pointerleave', () => { pointer.active = false; });
 cv.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') pointer.active = false; });
 cv.addEventListener('dblclick', () => toggleFullscreen());
@@ -1025,7 +1138,8 @@ setTimeout(() => $('hint').classList.add('gone'), 9000);
 // =====================================================================================
 // 12. メインループ
 // =====================================================================================
-plant(runSync(specJob({ ...PRESETS[0][1] }, PRESETS[0][0])));
+// 起動は止めない：最初の花は裏で探す。見つかるまでは中心の種火だけが拍に合わせて灯る
+const seekStart = performance.now();
 let last = performance.now(), slowAcc = 0, slowFrames = 0;
 function update(dt) {
   state.time += dt;
@@ -1047,6 +1161,13 @@ function update(dt) {
   view.rot += dt * (0.012 + state.chaos * 0.03);
   // 庭の世代交代
   const lead = gardens[gardens.length - 1];
+  if (!lead) {
+    runJobs(LOW ? 9 : 12);
+    if (ready.length) plant(ready.shift());
+    else if (performance.now() - seekStart > 15000) plant(runSync(specJob({ ...PRESETS[0][1] }, PRESETS[0][0])));  // 保険
+    updateParticles(dt);
+    return;
+  }
   if (lead.gb >= CYCLE && ready.length) plant(ready.shift());
   else if (lead.gb >= CYCLE + 3) plant(lead.spec);   // 探索が間に合わなければ同じ花をもう一度
   for (const g of gardens) g.update(state.beat, dB);
@@ -1067,6 +1188,17 @@ function render() {
   g.globalCompositeOperation = 'source-over';
   // 背景（混沌では残像を残す）
   const lead = gardens[gardens.length - 1], prevG = gardens.length > 1 ? gardens[0] : null;
+  if (!lead) {   // 最初の花を探している間：種火だけ
+    g.globalAlpha = 1; g.fillStyle = THEMES[0].bgGrad; g.fillRect(0, 0, W, H);
+    g.globalCompositeOperation = 'lighter';
+    const r = view.S * (0.07 + 0.05 * state.beatEnv + 0.03 * Math.sin(t * 0.8));
+    g.globalAlpha = 0.35 + 0.4 * state.beatEnv;
+    g.drawImage(THEMES[0].seedGlow, view.cx - r, view.cy - r, r * 2, r * 2);
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    drawParticles(g);
+    g.fillStyle = view.vignette; g.fillRect(0, 0, W, H);
+    return;
+  }
   g.globalAlpha = 1 - 0.42 * state.chaos;
   g.fillStyle = (prevG && prevG.alpha > lead.alpha ? prevG : lead).theme.bgGrad;
   g.fillRect(0, 0, W, H);
