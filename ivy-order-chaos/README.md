@@ -1,5 +1,7 @@
 # Ivy Mandala — Order × Chaos
 
+**🌐 デモ: https://york-14.github.io/Design-Portfolio-1/ivy-order-chaos/**
+
 蔦と葉で描く対称カオス写像。秩序（Order）と混沌（Chaos）が 80–120 BPM の鼓動で呼吸し続ける、店舗サイネージ向けのジェネラティブ作品です。
 
 ベース: [Generative Flower — Order × Chaos](https://york-14.github.io/Generative-flower-Order-Chaos/) の数理モデル（Field & Golubitsky の symmetric icons と `Beauty = Order × Complexity × Contrast`）。
@@ -61,6 +63,8 @@ BPM     = 80 + 40·tension   （約 2 秒で滑らかに追従）
 | `?hud=0` | HUD なし（サイネージ用のクリーンな画面） |
 | `?quality=low` | 低スペック端末向け（DPR 1、粒子・蔦の数を削減） |
 | `?speed=4` | 時間倍率（プレビュー・確認用） |
+
+例: https://york-14.github.io/Design-Portfolio-1/ivy-order-chaos/?hud=0 （サイネージ用）
 
 ## サイネージ運用
 
