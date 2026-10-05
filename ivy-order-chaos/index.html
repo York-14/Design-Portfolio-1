@@ -95,8 +95,8 @@ body.idle .tr .btn, body.idle .tr .seg { opacity: 0; transition: opacity 1s; }
   </div>
   <div class="corner tr">
     <div class="seg" role="group" aria-label="花の選び方">
-      <button class="btn" id="modeWalk" type="button" data-mode="walk" aria-pressed="true">WALK</button>
-      <button class="btn" id="modeChaos" type="button" data-mode="chaos" aria-pressed="false">CHAOS</button>
+      <button class="btn" id="modeWalk" type="button" data-mode="walk" aria-pressed="false">WALK</button>
+      <button class="btn" id="modeChaos" type="button" data-mode="chaos" aria-pressed="true">CHAOS</button>
     </div>
     <button class="btn" id="snd" type="button" aria-pressed="false">SOUND OFF</button>
   </div>
@@ -279,7 +279,7 @@ const runSync = gen => { let r; do r = gen.next(); while (!r.done); return r.val
 //   ?mode=chaos (C) カオス由来：今の花のアトラクタ軌道そのものを乱数源にして次の花を生む
 //   ?seed=xxx   同じ SEED なら同じ花の連なりを再現する（細部の揺らぎは毎回変わる）
 // =====================================================================================
-let MODE = URLP.get('mode') === 'chaos' ? 'chaos' : 'walk';   // 画面右上のボタンでも切り替えられる
+let MODE = URLP.get('mode') === 'walk' ? 'walk' : 'chaos';    // 既定は CHAOS   // 画面右上のボタンでも切り替えられる
 const SEED_STR = (URLP.get('seed') || '').trim().slice(0, 32) ||
   Math.floor(Math.random() * 36 ** 6).toString(36).padStart(6, '0');
 function hashSeed(str) {          // FNV-1a 32bit
