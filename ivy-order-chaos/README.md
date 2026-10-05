@@ -1,5 +1,7 @@
-# Ivy Mandala — Order × Chaos
+# Beauty Between Order and Chaos
 
-**🌐 デモ: https://york-14.github.io/Design-Portfolio-1/ivy-order-chaos/**
+**Beauty Between Order and Chaos**（別名 Ivy Mandala）は、York-14 が 2026 年に制作した、ブラウザで動くジェネラティブアート作品です。
 
-作品の解説（数理モデル、花の選び方、SEED、操作、URL パラメータ、運用メモ）は、リポジトリのトップの [README](../README.md) にまとめています。
+- 🌐 デモ / Demo: https://york-14.github.io/Design-Portfolio-1/ivy-order-chaos/
+- 📖 解説 / Documentation: リポジトリのトップの [README](../README.md)（数理モデル、花の選び方、SEED、操作、URL パラメータ、よくある質問、引用のしかた）
+- ⚖️ ライセンス / License: [LICENSE.md](../LICENSE.md)

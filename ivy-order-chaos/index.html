@@ -4,7 +4,77 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Beauty Between Order and Chaos</title>
-<meta name="description" content="対称カオス写像（Field–Golubitsky）を蔦と葉で描く。秩序と混沌が 80–120 BPM の鼓動で呼吸し続けるジェネラティブ・サイネージ。">
+<meta name="description" content="York-14 によるジェネラティブアート作品（2026）。Field–Golubitsky の対称カオス写像のアトラクタに沿って蔦と葉が伸び、秩序と混沌が 80〜120 BPM のテンポで繰り返す。">
+<meta name="author" content="York-14">
+<link rel="canonical" href="https://york-14.github.io/Design-Portfolio-1/ivy-order-chaos/">
+<link rel="license" href="https://github.com/York-14/Design-Portfolio-1/blob/main/LICENSE.md">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Beauty Between Order and Chaos">
+<meta property="og:description" content="A generative artwork by York-14 (2026): ivy vines grow along the attractor of the Field–Golubitsky symmetric chaos map, cycling between order and chaos at 80–120 BPM.">
+<meta property="og:url" content="https://york-14.github.io/Design-Portfolio-1/ivy-order-chaos/">
+<meta property="og:image" content="https://york-14.github.io/Design-Portfolio-1/ivy-order-chaos/images/order-bloom.jpg">
+<meta property="og:image:alt" content="緑の蔦と葉が回転対称の曼荼羅をつくり、巻きひげの先にアトラクタの形をした光る花が咲いている">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "VisualArtwork",
+ "name": "Beauty Between Order and Chaos",
+ "alternateName": "Ivy Mandala",
+ "creator": {
+  "@type": "Person",
+  "name": "York-14",
+  "url": "https://github.com/York-14"
+ },
+ "dateCreated": "2026-10-04",
+ "url": "https://york-14.github.io/Design-Portfolio-1/ivy-order-chaos/",
+ "image": "https://york-14.github.io/Design-Portfolio-1/ivy-order-chaos/images/order-bloom.jpg",
+ "description": "A generative artwork by York-14 (2026): ivy vines grow along the attractor of the Field–Golubitsky symmetric chaos map, cycling between order and chaos at 80–120 BPM.",
+ "artform": "Generative art",
+ "artMedium": "HTML, Canvas 2D, Web Audio API",
+ "inLanguage": [
+  "ja",
+  "en"
+ ],
+ "keywords": [
+  "generative art",
+  "chaos theory",
+  "symmetric chaos",
+  "strange attractor",
+  "Field–Golubitsky symmetric icons",
+  "Lyapunov exponent",
+  "creative coding",
+  "interactive art"
+ ],
+ "license": "https://github.com/York-14/Design-Portfolio-1/blob/main/LICENSE.md",
+ "codeRepository": "https://github.com/York-14/Design-Portfolio-1",
+ "isBasedOn": {
+  "@type": "CreativeWork",
+  "name": "Generative Flower — Order × Chaos",
+  "url": "https://york-14.github.io/Generative-flower-Order-Chaos/",
+  "creator": {
+   "@type": "Person",
+   "name": "York-14"
+  }
+ },
+ "citation": {
+  "@type": "Book",
+  "name": "Symmetry in Chaos: A Search for Pattern in Mathematics, Art and Nature",
+  "author": [
+   {
+    "@type": "Person",
+    "name": "Michael Field"
+   },
+   {
+    "@type": "Person",
+    "name": "Martin Golubitsky"
+   }
+  ],
+  "datePublished": "1992",
+  "publisher": "Oxford University Press"
+ }
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,300;1,400&family=IBM+Plex+Mono:wght@300;400&display=swap" rel="stylesheet">
@@ -23,6 +93,7 @@ body { font-family: "Cormorant Garamond", "Hiragino Mincho ProN", "Yu Mincho", s
 body.idle, body.idle * { cursor: none !important; }
 canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 
+.vh { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .hud { position: fixed; inset: 0; pointer-events: none; transition: opacity 1.2s ease; }
 .hud.off { opacity: 0; }
 .corner { position: absolute; }
@@ -58,7 +129,7 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; t
 .btn { pointer-events: auto; background: none; border: 1px solid var(--faint); color: var(--muted); border-radius: 999px;
   font: 300 11px/1 "IBM Plex Mono", monospace; letter-spacing: 0.25em; padding: 9px 14px 9px 16px; cursor: pointer; transition: color .3s, border-color .3s, opacity 1s; }
 .btn:hover, .btn.on { color: var(--ink); border-color: var(--muted); }
-.hint { position: fixed; left: 50%; top: max(16px, 3.2vmin); transform: translateX(-50%); pointer-events: none;
+.hint { position: fixed; left: 50%; top: calc(max(16px, 3.2vmin) + 52px); transform: translateX(-50%); pointer-events: none;
   font: 300 11px/1.6 "IBM Plex Mono", monospace; letter-spacing: 0.22em; color: var(--muted); text-align: center; transition: opacity 1.5s; white-space: nowrap; }
 .hint.gone { opacity: 0; }
 body.idle .tr .btn, body.idle .tr .seg { opacity: 0; transition: opacity 1s; }
@@ -77,6 +148,12 @@ body.idle .tr .btn, body.idle .tr .seg { opacity: 0; transition: opacity 1s; }
 </style>
 </head>
 <body>
+<article class="vh">
+  <h1>Beauty Between Order and Chaos</h1>
+  <p>Beauty Between Order and Chaos（別名 Ivy Mandala）は、York-14 が 2026 年に制作した、ブラウザで動くジェネラティブアート作品です。Field &amp; Golubitsky の対称カオス写像 z(t+1) = (λ + α|z|² + β·Re(zⁿ) + iω)·z + γ·conj(z)^(n−1) が描くアトラクタに沿って蔦と葉が伸び、秩序（Order）と混沌（Chaos）が 80〜120 BPM のテンポで繰り返します。数式は固定のまま、パラメータだけが花ごとに変わり、Beauty = Order × Complexity × Contrast という評価で選ばれます。</p>
+  <p lang="en">Beauty Between Order and Chaos (also known as Ivy Mandala) is a browser-based generative artwork by York-14 (2026). Ivy vines grow along the attractor of the Field–Golubitsky symmetric chaos map and cycle between order and chaos at 80–120 BPM.</p>
+  <p>作者: <a href="https://github.com/York-14">York-14</a> ／ 解説: <a href="https://github.com/York-14/Design-Portfolio-1#readme">README</a> ／ ライセンス: <a href="https://github.com/York-14/Design-Portfolio-1/blob/main/LICENSE.md">コードは PolyForm Noncommercial 1.0.0、画像は CC BY-NC 4.0</a></p>
+</article>
 <canvas id="cv" aria-label="蔦と葉が対称カオス写像に沿って伸び、秩序と混沌を繰り返すジェネラティブアート"></canvas>
 
 <div class="hud" id="hud">

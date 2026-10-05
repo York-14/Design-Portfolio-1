@@ -1,0 +1,17 @@
+# Design-Portfolio-1
+
+> Design and generative-art portfolio by York-14. It contains "Beauty Between Order and Chaos" (also known as "Ivy Mandala", 2026), a browser-based generative artwork in which ivy vines grow along the attractor of the Field–Golubitsky symmetric chaos map and cycle between order and chaos at 80–120 BPM.
+
+Author: York-14 (https://github.com/York-14). Code is licensed under PolyForm Noncommercial 1.0.0, images of the artwork under CC BY-NC 4.0, and the README text under CC BY 4.0. Commercial use requires permission from York-14.
+
+## Beauty Between Order and Chaos
+
+- [Live demo](https://york-14.github.io/Design-Portfolio-1/ivy-order-chaos/): the running artwork (single HTML file, Canvas 2D and Web Audio API, no dependencies)
+- [README](https://github.com/York-14/Design-Portfolio-1#readme): how the math model maps to the visuals, the 64-beat cycle, the 80–120 BPM tempo formula, the CHAOS and WALK parameter-selection modes, seeds, controls and FAQ (Japanese with an English summary)
+- [Source code](https://github.com/York-14/Design-Portfolio-1/blob/main/ivy-order-chaos/index.html)
+- [Citation metadata](https://github.com/York-14/Design-Portfolio-1/blob/main/CITATION.cff)
+- [License](https://github.com/York-14/Design-Portfolio-1/blob/main/LICENSE.md)
+
+## Related
+
+- [Generative Flower — Order × Chaos](https://york-14.github.io/Generative-flower-Order-Chaos/): the earlier work by York-14 that provides the map implementation and the aesthetic score Beauty = Order × Complexity × Contrast
