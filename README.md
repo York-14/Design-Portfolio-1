@@ -1,6 +1,6 @@
 # Design-Portfolio-1
 
-## Ivy Mandala — Order × Chaos
+## Beauty — Order × Chaos
 
 **🌐 デモ: https://york-14.github.io/Design-Portfolio-1/ivy-order-chaos/**
 
